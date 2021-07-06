@@ -61,4 +61,6 @@
 #define IMX_CCM_TPM5_CLK                0x0F04UL
 #define IMX_CCM_TPM6_CLK                0x0F05UL
 
+#define IMX_CCM_GPT_IPG_CLK		0x0E00UL
+
 #endif /* ZEPHYR_INCLUDE_DT_BINDINGS_CLOCK_IMX_CCM_H_ */
