@@ -201,6 +201,14 @@ static int mcux_ccm_get_subsys_rate(const struct device *dev,
 	case IMX_CCM_GPT_CLK:
 		*rate = CLOCK_GetFreq(kCLOCK_PerClk);
 		break;
+	case IMX_CCM_GPT_IPG_CLK:
+	{
+		uint32_t mux = CLOCK_GetRootMux(kCLOCK_RootGpt1);
+		if (mux == 0)
+			*rate = OSC24M_CLK_FREQ;
+		else
+			*rate = 0;
+	} break;
 #endif
 
 #ifdef CONFIG_COUNTER_MCUX_QTMR
