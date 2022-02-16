@@ -1,0 +1,33 @@
+# Copyright 2022 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+source "drivers/sdhc/Kconfig.imx"
+
+menuconfig SDHC
+	bool "SDHC drivers"
+	help
+	  Include drivers for SD host controller
+
+if SDHC
+
+config SDHC_INIT_PRIORITY
+	int "SDHC driver init priority"
+	default 85
+	help
+	  SDHC driver system init priority
+
+config SDHC_BUFFER_ALIGNMENT
+	int
+	default 1
+	help
+	  Some SD host controllers require alignment of their data buffers
+	  in order to DMA to work correctly. Devices should change default of
+	  this value if they require alignment. This represents the alignment
+	  of buffers required in bytes
+
+module = SDHC
+module-str = sdhc
+source "subsys/logging/Kconfig.template.log_config"
+
+
+endif # SDHC
