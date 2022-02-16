@@ -420,6 +420,29 @@ static int sdmmc_read_csd(struct sd_card *card)
 	return 0;
 }
 
+static int sdmmc_select_card(struct sd_card *card)
+{
+	struct sdhc_command cmd = {0};
+	int ret;
+
+	cmd.opcode = SD_SELECT_CARD;
+	cmd.arg = (card->relative_addr << 16U);
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+
+	ret = sdhc_request(card->sdhc, &cmd, NULL);
+	if (ret) {
+		LOG_DBG("CMD7 failed");
+		return ret;
+	}
+	ret = sdmmc_check_response(&cmd);
+	if (ret) {
+		LOG_DBG("CMD7 reports error");
+		return ret;
+	}
+	return 0;
+}
+
 /*
  * Initializes SDMMC card. Note that the common SD function has already
  * sent CMD0 and CMD8 to the card at function entry.
@@ -469,6 +492,11 @@ int sdmmc_card_init(struct sd_card *card)
 	}
 	/* Card has entered data transfer mode. Get card specific data register */
 	ret = sdmmc_read_csd(card);
+	if (ret) {
+		return ret;
+	}
+	/* Move the card to transfer state (with CMD7) to run remaining commands */
+	ret = sdmmc_select_card(card);
 	if (ret) {
 		return ret;
 	}
