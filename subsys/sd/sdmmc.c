@@ -1293,3 +1293,21 @@ int sdmmc_write_blocks(struct sd_card *card, const uint8_t *wbuf,
 	k_mutex_unlock(&card->lock);
 	return 0;
 }
+
+
+/* IO Control handler for SD MMC */
+int sdmmc_ioctl(struct sd_card *card, uint8_t cmd, void *buf)
+{
+	switch (cmd) {
+	case DISK_IOCTL_GET_SECTOR_COUNT:
+		(*(uint32_t *)buf) = card->block_count;
+		break;
+	case DISK_IOCTL_GET_SECTOR_SIZE:
+	case DISK_IOCTL_GET_ERASE_BLOCK_SZ:
+		(*(uint32_t *)buf) = card->block_size;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+	return 0;
+}
