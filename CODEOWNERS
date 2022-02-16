@@ -592,6 +592,7 @@
 /include/shared_irq.h                     @dcpleung @nashif @andyross
 /include/shell/                           @jakub-uC @nordic-krch
 /include/sw_isr_table.h                   @dcpleung @nashif @andyross
+/include/sd/                              @danieldegrasse
 /include/sys_clock.h                      @dcpleung @nashif @andyross
 /include/sys/sys_io.h                     @dcpleung @nashif @andyross
 /include/sys/kobject.h                    @dcpleung @nashif
