@@ -25,6 +25,9 @@ if(CONFIG_PM)
 zephyr_sources_ifdef(CONFIG_SOC_SERIES_IMX_RT11XX power_rt11xx.c)
 endif()
 
+zephyr_linker_sources(
+  RWDATA nocache.ld)
+
 zephyr_linker_section_configure(
   SECTION .rom_start
   INPUT ".boot_hdr.ivt"
