@@ -17,6 +17,26 @@
 
 LOG_MODULE_DECLARE(sd, CONFIG_SD_LOG_LEVEL);
 
+static inline void sdmmc_decode_cid(struct sd_cid *cid,
+	uint32_t *raw_cid)
+{
+	cid->manufacturer = (uint8_t)((raw_cid[3U] & 0xFF000000U) >> 24U);
+	cid->application = (uint16_t)((raw_cid[3U] & 0xFFFF00U) >> 8U);
+
+	cid->name[0U] = (uint8_t)((raw_cid[3U] & 0xFFU));
+	cid->name[1U] = (uint8_t)((raw_cid[2U] & 0xFF000000U) >> 24U);
+	cid->name[2U] = (uint8_t)((raw_cid[2U] & 0xFF0000U) >> 16U);
+	cid->name[3U] = (uint8_t)((raw_cid[2U] & 0xFF00U) >> 8U);
+	cid->name[4U] = (uint8_t)((raw_cid[2U] & 0xFFU));
+
+	cid->version = (uint8_t)((raw_cid[1U] & 0xFF000000U) >> 24U);
+
+	cid->ser_num = (uint32_t)((raw_cid[1U] & 0xFFFFFFU) << 8U);
+	cid->ser_num |= (uint32_t)((raw_cid[0U] & 0xFF000000U) >> 24U);
+
+	cid->date = (uint16_t)((raw_cid[0U] & 0xFFF00U) >> 8U);
+}
+
 /* Checks SD status return codes */
 static inline int sdmmc_check_response(struct sdhc_command *cmd)
 {
@@ -226,6 +246,30 @@ static int sdmmc_switch_voltage(struct sd_card *card)
 	return 0;
 }
 
+/* Reads card identification register, and decodes it */
+static int sdmmc_read_cid(struct sd_card *card)
+{
+	struct sdhc_command cmd = {0};
+	int ret;
+
+	cmd.opcode = SD_ALL_SEND_CID;
+	cmd.arg = 0;
+	cmd.response_type = SDHC_RSP_TYPE_R2;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+
+	ret = sdhc_request(card->sdhc, &cmd, NULL);
+	if (ret) {
+		LOG_DBG("CMD2 failed");
+		return ret;
+	}
+	/* Decode SD CID */
+	sdmmc_decode_cid(&card->cid, cmd.response);
+	LOG_DBG("Card MID: 0x%x, OID: %c%c", card->cid.manufacturer,
+		((char *)&card->cid.application)[0],
+		((char *)&card->cid.application)[1]);
+	return 0;
+}
+
 /*
  * Initializes SDMMC card. Note that the common SD function has already
  * sent CMD0 and CMD8 to the card at function entry.
@@ -259,5 +303,10 @@ int sdmmc_card_init(struct sd_card *card)
 			card->status = CARD_ERROR;
 			return SD_RESTART;
 		}
+	}
+	/* Read the card's CID (card identification register) */
+	ret = sdmmc_read_cid(card);
+	if (ret) {
+		return ret;
 	}
 }
