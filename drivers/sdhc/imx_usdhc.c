@@ -80,6 +80,24 @@ struct usdhc_data {
 	uint32_t dma_descriptor_len; /* DMA descriptor table length in words */
 };
 
+static void transfer_complete_cb(USDHC_Type *usdhc, usdhc_handle_t *handle,
+	status_t status, void *user_data)
+{
+	const struct device *dev = (const struct device *)user_data;
+	struct usdhc_data *data = dev->data;
+
+	if (status == kStatus_USDHC_TransferDataFailed) {
+		data->transfer_status |= TRANSFER_DATA_FAILED;
+	} else if (status == kStatus_USDHC_TransferDataComplete) {
+		data->transfer_status |= TRANSFER_DATA_COMPLETE;
+	} else if (status == kStatus_USDHC_SendCommandFailed) {
+		data->transfer_status |= TRANSFER_CMD_FAILED;
+	} else if (status == kStatus_USDHC_SendCommandSuccess) {
+		data->transfer_status |= TRANSFER_CMD_COMPLETE;
+	}
+	k_sem_give(&data->transfer_sem);
+}
+
 static int imx_usdhc_dat3_pull(const struct usdhc_config *cfg, bool pullup)
 {
 	int ret = 0U;
@@ -104,6 +122,25 @@ static int imx_usdhc_dat3_pull(const struct usdhc_config *cfg, bool pullup)
 	}
 #endif
 	return ret;
+}
+
+/*
+ * Reset SDHC after command error
+ */
+static void imx_usdhc_error_recovery(const struct device *dev)
+{
+	const struct usdhc_config *cfg = dev->config;
+	uint32_t status = USDHC_GetPresentStatusFlags(cfg->base);
+
+	if (status & kUSDHC_CommandInhibitFlag) {
+		/* Reset command line */
+		USDHC_Reset(cfg->base, kUSDHC_ResetCommand, 100U);
+	}
+	if (((status & (uint32_t)kUSDHC_DataInhibitFlag) != 0U) ||
+		(USDHC_GetAdmaErrorStatusFlags(cfg->base) != 0U)) {
+		/* Reset data line */
+		USDHC_Reset(cfg->base, kUSDHC_DataInhibitFlag, 100U);
+	}
 }
 
 /*
@@ -311,6 +348,81 @@ static int imx_usdhc_set_io(const struct device *dev, struct sdhc_io *ios)
 }
 
 /*
+ * Internal transfer function, used by tuning and request apis
+ */
+static int imx_usdhc_transfer(const struct device *dev,
+	struct usdhc_host_transfer *request)
+{
+	const struct usdhc_config *cfg = dev->config;
+	struct usdhc_data *dev_data = dev->data;
+	usdhc_adma_config_t dma_config = {0};
+	status_t error;
+
+	/* Configure DMA */
+	dma_config.admaTable = dev_data->usdhc_dma_descriptor;
+	dma_config.admaTableWords = dev_data->dma_descriptor_len;
+#if !(defined(FSL_FEATURE_USDHC_HAS_NO_RW_BURST_LEN) && FSL_FEATURE_USDHC_HAS_NO_RW_BURST_LEN)
+	dma_config.burstLen = kUSDHC_EnBurstLenForINCR;
+#endif
+	dma_config.dmaMode = kUSDHC_DmaModeAdma2;
+
+	/* Reset transfer status */
+	dev_data->transfer_status = 0U;
+	/* Reset semaphore */
+	k_sem_reset(&dev_data->transfer_sem);
+	error = USDHC_TransferNonBlocking(cfg->base, &dev_data->transfer_handle,
+			&dma_config, request->transfer);
+	if (error == kStatus_USDHC_ReTuningRequest) {
+		return -EAGAIN;
+	} else if (error != kStatus_Success) {
+		return -EIO;
+	}
+	/* Wait for event to occur */
+	while ((dev_data->transfer_status & (TRANSFER_CMD_FLAGS | TRANSFER_DATA_FLAGS)) == 0) {
+		if (k_sem_take(&dev_data->transfer_sem, request->command_timeout)) {
+			return -ETIMEDOUT;
+		}
+	}
+	if (dev_data->transfer_status & TRANSFER_CMD_FAILED) {
+		return -EIO;
+	}
+	/* If data was sent, wait for that to complete */
+	if (request->transfer->data) {
+		while ((dev_data->transfer_status & TRANSFER_DATA_FLAGS) == 0) {
+			if (k_sem_take(&dev_data->transfer_sem, request->data_timeout)) {
+				return -ETIMEDOUT;
+			}
+		}
+		if (dev_data->transfer_status & TRANSFER_DATA_FAILED) {
+			return -EIO;
+		}
+	}
+	return 0;
+}
+
+/* Stops transmission after failed command with CMD12 */
+static void imx_usdhc_stop_transmission(const struct device *dev)
+{
+	usdhc_command_t stop_cmd = {0};
+	struct usdhc_host_transfer request;
+	usdhc_transfer_t transfer;
+
+	/* Send CMD12 to stop transmission */
+	stop_cmd.index = SD_STOP_TRANSMISSION;
+	stop_cmd.argument = 0U;
+	stop_cmd.type = kCARD_CommandTypeAbort;
+	stop_cmd.responseType = SDHC_RSP_TYPE_R1b;
+	transfer.command = &stop_cmd;
+	transfer.data = NULL;
+
+	request.transfer = &transfer;
+	request.command_timeout = K_MSEC(IMX_USDHC_DEFAULT_TIMEOUT);
+	request.data_timeout = K_MSEC(IMX_USDHC_DEFAULT_TIMEOUT);
+
+	imx_usdhc_transfer(dev, &request);
+}
+
+/*
  * Return 0 if card is not busy, 1 if it is
  */
 static int imx_usdhc_card_busy(const struct device *dev)
@@ -323,6 +435,144 @@ static int imx_usdhc_card_busy(const struct device *dev)
 		kUSDHC_Data2LineLevelFlag |
 		kUSDHC_Data3LineLevelFlag))
 		? 0 : 1;
+}
+
+/*
+ * Send CMD or CMD/DATA via SDHC
+ */
+static int imx_usdhc_request(const struct device *dev, struct sdhc_command *cmd,
+	struct sdhc_data *data)
+{
+	const struct usdhc_config *cfg = dev->config;
+	struct usdhc_data *dev_data = dev->data;
+	usdhc_command_t host_cmd = {0};
+	usdhc_data_t host_data = {0};
+	struct usdhc_host_transfer request;
+	usdhc_transfer_t transfer;
+	int busy_timeout = IMX_USDHC_DEFAULT_TIMEOUT;
+	int ret = 0;
+	int retries = (int)cmd->retries;
+
+	host_cmd.index = cmd->opcode;
+	host_cmd.argument = cmd->arg;
+	host_cmd.responseType = cmd->response_type;
+	transfer.command = &host_cmd;
+	if (cmd->timeout_ms == SDHC_TIMEOUT_FOREVER) {
+		request.command_timeout = K_FOREVER;
+	} else {
+		request.command_timeout = K_MSEC(cmd->timeout_ms);
+	}
+
+	if (data) {
+		host_data.blockSize = data->block_size;
+		host_data.blockCount = data->blocks;
+		/*
+		 * Determine type of command. Note that driver is expected to
+		 * handle CMD12 and CMD23 for reading and writing blocks
+		 */
+		switch (cmd->opcode) {
+		case SD_WRITE_SINGLE_BLOCK:
+			host_data.enableAutoCommand12 = true;
+			host_data.txData = data->data;
+			break;
+		case SD_WRITE_MULTIPLE_BLOCK:
+			if (dev_data->host_io.timing == SDHC_TIMING_SDR104) {
+				/* Card uses UHS104, so it must support CMD23 */
+				host_data.enableAutoCommand23 = true;
+			} else {
+				/* No CMD23 support */
+				host_data.enableAutoCommand12 = true;
+			}
+			host_data.txData = data->data;
+			break;
+		case SD_READ_SINGLE_BLOCK:
+			host_data.enableAutoCommand12 = true;
+			host_data.rxData = data->data;
+			break;
+		case SD_READ_MULTIPLE_BLOCK:
+			if (dev_data->host_io.timing == SDHC_TIMING_SDR104) {
+				/* Card uses UHS104, so it must support CMD23 */
+				host_data.enableAutoCommand23 = true;
+			} else {
+				/* No CMD23 support */
+				host_data.enableAutoCommand12 = true;
+			}
+			host_data.rxData = data->data;
+			break;
+		case SD_APP_SEND_SCR:
+		case SD_SWITCH:
+		case SD_APP_SEND_NUM_WRITTEN_BLK:
+			host_data.rxData = data->data;
+			break;
+		default:
+			return -ENOTSUP;
+
+		}
+		transfer.data = &host_data;
+		if (data->timeout_ms == SDHC_TIMEOUT_FOREVER) {
+			request.data_timeout = K_FOREVER;
+		} else {
+			request.data_timeout = K_MSEC(data->timeout_ms);
+		}
+	} else {
+		transfer.data = NULL;
+		request.data_timeout = K_NO_WAIT;
+	}
+	request.transfer = &transfer;
+	while (retries >= 0) {
+		ret = imx_usdhc_transfer(dev, &request);
+		if (ret && data) {
+			/*
+			 * Disable and clear interrupts. If the data transmission
+			 * completes later, we will encounter issues because
+			 * the USDHC driver expects data to be present in the
+			 * current transmission, but CMD12 does not contain data
+			 */
+			USDHC_DisableInterruptSignal(cfg->base, kUSDHC_CommandFlag |
+				kUSDHC_DataFlag | kUSDHC_DataDMAFlag);
+			USDHC_ClearInterruptStatusFlags(cfg->base, kUSDHC_CommandFlag |
+				kUSDHC_DataFlag | kUSDHC_DataDMAFlag);
+			/* Stop transmission with CMD12 in case of data error */
+			imx_usdhc_stop_transmission(dev);
+			/* Wait for card to go idle */
+			while (busy_timeout > 0) {
+				if (!imx_usdhc_card_busy(dev)) {
+					break;
+				}
+				/* Wait 125us before polling again */
+				k_busy_wait(125);
+				busy_timeout -= 125;
+			}
+			if (busy_timeout <= 0) {
+				LOG_DBG("Card did not idle after CMD12");
+				return -ETIMEDOUT;
+			}
+		}
+		if (ret == -EAGAIN) {
+			/* Retry, card made a tuning request */
+			if (dev_data->host_io.timing == SDHC_TIMING_SDR50 ||
+				dev_data->host_io.timing == SDHC_TIMING_SDR104) {
+				/* Retune card */
+				LOG_DBG("Card made tuning request, retune");
+				ret = imx_usdhc_execute_tuning(dev);
+				if (ret) {
+					LOG_DBG("Card failed to tune");
+					return ret;
+				}
+			}
+		}
+		if (ret) {
+			imx_usdhc_error_recovery(dev);
+			retries--;
+		} else {
+			break;
+		}
+	}
+	/* Record command response */
+	memcpy(cmd->response, host_cmd.response, sizeof(cmd->response));
+	/* Record number of bytes xfered */
+	data->bytes_xfered = dev_data->transfer_handle.transferredWords;
+	return ret;
 }
 
 /*
@@ -359,6 +609,15 @@ static int imx_usdhc_get_host_props(const struct device *dev,
 	struct usdhc_data *data = dev->data;
 
 	memcpy(props, &data->props, sizeof(struct sdhc_host_props));
+	return 0;
+}
+
+static int imx_usdhc_isr(const struct device *dev)
+{
+	const struct usdhc_config *cfg = dev->config;
+	struct usdhc_data *data = dev->data;
+
+	USDHC_TransferHandleIRQ(cfg->base, &data->transfer_handle);
 	return 0;
 }
 
@@ -408,6 +667,7 @@ static int imx_usdhc_init(const struct device *dev)
 
 static struct sdhc_driver_api usdhc_api = {
 	.reset = imx_usdhc_reset,
+	.request = imx_usdhc_request,
 	.set_io = imx_usdhc_set_io,
 	.get_card_present = imx_usdhc_get_card_present,
 	.card_busy = imx_usdhc_card_busy,
@@ -439,6 +699,9 @@ static struct sdhc_driver_api usdhc_api = {
 #define IMX_USDHC_INIT(n)							\
 	static void usdhc_##n##_irq_config_func(const struct device *dev)	\
 	{									\
+		IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority),		\
+			imx_usdhc_isr, DEVICE_DT_INST_GET(n), 0);		\
+		irq_enable(DT_INST_IRQN(n));					\
 	}									\
 										\
 	static const struct usdhc_config usdhc_##n##_config = {			\
