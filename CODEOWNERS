@@ -744,6 +744,7 @@ scripts/gen_image_info.py                 @tejlmand
 /subsys/shell/                            @jakub-uC @nordic-krch
 /subsys/stats/                            @nvlsianpu
 /subsys/storage/                          @nvlsianpu
+/subsys/sd/                               @danieldegrasse
 /subsys/task_wdt/                         @martinjaeger
 /subsys/testsuite/                        @nashif
 /subsys/testsuite/ztest/*/ztress*         @nordic-krch
