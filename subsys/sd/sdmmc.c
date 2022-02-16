@@ -625,7 +625,7 @@ static int sdmmc_read_switch(struct sd_card *card)
 	}
 	/* Use card internal buffer to read 64 byte switch data */
 	status = card->card_buffer;
-	/**
+	/*
 	 * Setting switch to zero will read card's support values,
 	 * otherwise known as SD "check function"
 	 */
@@ -1118,6 +1118,172 @@ int sdmmc_read_blocks(struct sd_card *card, uint8_t *rbuf,
 		}
 	}
 	/* Verify card is back in transfer state after read */
+	ret = sdmmc_wait_ready(card);
+	if (ret) {
+		LOG_ERR("Card did not return to ready state");
+		k_mutex_unlock(&card->lock);
+		return -ETIMEDOUT;
+	}
+	k_mutex_unlock(&card->lock);
+	return 0;
+}
+
+/*
+ * Sends ACMD22 (number of written blocks) to see how many blocks were written
+ * to a card
+ */
+static int sdmmc_query_written(struct sd_card *card, uint32_t *num_written)
+{
+	int ret;
+	struct sdhc_command cmd = {0};
+	struct sdhc_data data = {0};
+	uint32_t *blocks = (uint32_t *)card->card_buffer;
+
+	ret = sdmmc_app_command(card, card->relative_addr);
+	if (ret) {
+		LOG_DBG("App CMD for ACMD22 failed");
+		return ret;
+	}
+
+	cmd.opcode = SD_APP_SEND_NUM_WRITTEN_BLK;
+	cmd.arg = 0;
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+
+	data.block_size = 4U;
+	data.blocks = 1U;
+	data.data = blocks;
+	data.timeout_ms = CONFIG_SD_DATA_TIMEOUT;
+
+	ret = sdhc_request(card->sdhc, &cmd, &data);
+	if (ret) {
+		LOG_DBG("ACMD22 failed: %d", ret);
+		return ret;
+	}
+	ret = sdmmc_check_response(&cmd);
+	if (ret) {
+		LOG_DBG("ACMD22 reports error");
+		return ret;
+	}
+
+	/* Decode blocks */
+	*num_written = sys_be32_to_cpu(blocks[0]);
+	return 0;
+}
+
+static int sdmmc_write(struct sd_card *card, const uint8_t *wbuf,
+	uint32_t start_block, uint32_t num_blocks)
+{
+	int ret;
+	uint32_t blocks;
+	struct sdhc_command cmd = {0};
+	struct sdhc_data data = {0};
+
+	/*
+	 * See the note in sdmmc_read() above. We will not issue CMD23
+	 * or CMD12, and expect the host to handle those details.
+	 */
+	cmd.opcode = (num_blocks == 1) ? SD_WRITE_SINGLE_BLOCK : SD_WRITE_MULTIPLE_BLOCK;
+	if (!(card->flags & SDHC_HIGH_CAPACITY_FLAG)) {
+		/* SDSC cards require block size in bytes, not blocks */
+		cmd.arg = start_block * card->block_size;
+	} else {
+		cmd.arg = start_block;
+	}
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+	cmd.retries = CONFIG_SD_DATA_RETRIES;
+
+	data.block_addr = start_block;
+	data.block_size = card->block_size;
+	data.blocks = num_blocks;
+	data.data = (uint8_t *)wbuf;
+	data.timeout_ms = CONFIG_SD_DATA_TIMEOUT;
+
+	LOG_DBG("WRITE: Sector = %u, Count = %u", start_block, num_blocks);
+
+	ret = sdhc_request(card->sdhc, &cmd, &data);
+	if (ret) {
+		LOG_DBG("Write failed: %d", ret);
+		/* Wait for card to be idle */
+		ret = sdmmc_wait_ready(card);
+		if (ret) {
+			return ret;
+		}
+		/* Query card to see how many blocks were actually written */
+		ret = sdmmc_query_written(card, &blocks);
+		if (ret) {
+			return ret;
+		}
+		LOG_ERR("Only %d blocks of %d were written", blocks, num_blocks);
+		return -EIO;
+	}
+	return 0;
+}
+
+/* Writes data to SD card memory card */
+int sdmmc_write_blocks(struct sd_card *card, const uint8_t *wbuf,
+	uint32_t start_block, uint32_t num_blocks)
+{
+	int ret;
+	uint32_t wlen;
+	uint32_t sector;
+	const uint8_t *buf_offset;
+
+	if ((start_block + num_blocks) > card->block_count) {
+		return -EINVAL;
+	}
+	if (card->type == CARD_SDIO) {
+		LOG_WRN("SDIO does not support MMC commands");
+		return -ENOTSUP;
+	}
+	ret = k_mutex_lock(&card->lock, K_NO_WAIT);
+	if (ret) {
+		LOG_WRN("Could not get SD card mutex");
+		return -EBUSY;
+	}
+	/*
+	 * If the buffer we are provided with is aligned, we can use it
+	 * directly. Otherwise, we need to use the card's internal buffer
+	 * and memcpy the data back out
+	 */
+	if ((((uint32_t)wbuf) & (CONFIG_SDHC_BUFFER_ALIGNMENT - 1)) != 0) {
+		/* lower bits of address are set, not aligned. Use internal buffer */
+		LOG_DBG("Unaligned buffer access to SD card may incur performance penalty");
+		if (sizeof(card->card_buffer) < card->block_size) {
+			LOG_ERR("Card buffer size needs to be increased for "
+				"unaligned writes to work");
+			k_mutex_unlock(&card->lock);
+			return -ENOBUFS;
+		}
+		wlen = sizeof(card->card_buffer) / card->block_size;
+		sector = 0;
+		buf_offset = wbuf;
+		while (sector < num_blocks) {
+			/* Copy data into card buffer */
+			memcpy(card->card_buffer, buf_offset, wlen * card->block_size);
+			/* Write card buffer to disk */
+			ret = sdmmc_write(card, card->card_buffer,
+				sector + start_block, wlen);
+			if (ret) {
+				LOG_ERR("Write failed");
+				k_mutex_unlock(&card->lock);
+				return ret;
+			}
+			/* Increase sector count and buffer offset */
+			sector += wlen;
+			buf_offset += wlen * card->block_size;
+		}
+	} else {
+		/* We can use aligned buffers directly */
+		ret = sdmmc_write(card, wbuf, start_block, num_blocks);
+		if (ret) {
+			LOG_ERR("Write failed");
+			k_mutex_unlock(&card->lock);
+			return ret;
+		}
+	}
+	/* Verify card is back in transfer state after write */
 	ret = sdmmc_wait_ready(card);
 	if (ret) {
 		LOG_ERR("Card did not return to ready state");
