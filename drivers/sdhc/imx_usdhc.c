@@ -438,6 +438,87 @@ static int imx_usdhc_card_busy(const struct device *dev)
 }
 
 /*
+ * Execute card tuning
+ */
+static int imx_usdhc_execute_tuning(const struct device *dev)
+{
+	const struct usdhc_config *cfg = dev->config;
+	struct usdhc_data *dev_data = dev->data;
+	usdhc_command_t cmd = {0};
+	usdhc_data_t data = {0};
+	struct usdhc_host_transfer request;
+	usdhc_transfer_t transfer;
+	int ret;
+	bool retry_tuning = true;
+
+	cmd.index = SD_SEND_TUNING_BLOCK;
+	cmd.argument = 0;
+	cmd.responseType = SDHC_RSP_TYPE_R1;
+
+	data.blockSize = sizeof(dev_data->usdhc_rx_dummy);
+	data.blockCount = 1;
+	data.rxData = (uint32_t *)dev_data->usdhc_rx_dummy;
+	data.dataType = kUSDHC_TransferDataTuning;
+
+	transfer.command = &cmd;
+	transfer.data = &data;
+
+	/* Reset tuning circuit */
+	USDHC_Reset(cfg->base, kUSDHC_ResetTuning, 100U);
+	/* Disable standard tuning */
+	USDHC_EnableStandardTuning(cfg->base, IMX_USDHC_STANDARD_TUNING_START,
+		IMX_USDHC_TUNING_STEP, false);
+	/*
+	 * Tuning fail found on some SOCs is caused by the different of delay
+	 * cell, so we need to increase the tuning counter to cover the
+	 * adjustable tuning window
+	 */
+	USDHC_SetStandardTuningCounter(cfg->base, IMX_USDHC_STANDARD_TUNING_COUNTER);
+	/* Reenable standard tuning */
+	USDHC_EnableStandardTuning(cfg->base, IMX_USDHC_STANDARD_TUNING_START,
+		IMX_USDHC_TUNING_STEP, true);
+
+	request.command_timeout = K_MSEC(IMX_USDHC_DEFAULT_TIMEOUT);
+	request.data_timeout = K_MSEC(IMX_USDHC_DEFAULT_TIMEOUT);
+	request.transfer = &transfer;
+
+	while (true) {
+		ret = imx_usdhc_transfer(dev, &request);
+		if (ret) {
+			return ret;
+		}
+		/* Delay 1ms */
+		k_busy_wait(1000);
+
+		/* Wait for execute tuning bit to clear */
+		if (USDHC_GetExecuteStdTuningStatus(cfg->base) != 0) {
+			continue;
+		}
+		/* If tuning had error, retry tuning */
+		if ((USDHC_CheckTuningError(cfg->base) != 0U) && retry_tuning) {
+			retry_tuning = false;
+			/* Enable standard tuning */
+			USDHC_EnableStandardTuning(cfg->base,
+				IMX_USDHC_STANDARD_TUNING_START,
+				IMX_USDHC_TUNING_STEP, true);
+			USDHC_SetTuningDelay(cfg->base,
+				IMX_USDHC_STANDARD_TUNING_START, 0U, 0U);
+		} else {
+			break;
+		}
+	}
+
+	/* Check tuning result */
+	if (USDHC_CheckStdTuningResult(cfg->base) == 0) {
+		return -EIO;
+	}
+
+	/* Enable auto tuning */
+	USDHC_EnableAutoTuning(cfg->base, true);
+	return 0;
+}
+
+/*
  * Send CMD or CMD/DATA via SDHC
  */
 static int imx_usdhc_request(const struct device *dev, struct sdhc_command *cmd,
@@ -670,6 +751,7 @@ static struct sdhc_driver_api usdhc_api = {
 	.request = imx_usdhc_request,
 	.set_io = imx_usdhc_set_io,
 	.get_card_present = imx_usdhc_get_card_present,
+	.execute_tuning = imx_usdhc_execute_tuning,
 	.card_busy = imx_usdhc_card_busy,
 	.get_host_props = imx_usdhc_get_host_props,
 };
