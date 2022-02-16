@@ -17,6 +17,106 @@
 
 LOG_MODULE_DECLARE(sd, CONFIG_SD_LOG_LEVEL);
 
+static inline void sdmmc_decode_csd(struct sd_csd *csd,
+	uint32_t *raw_csd, uint32_t *blk_cout, uint32_t *blk_size)
+{
+	uint32_t tmp_blk_cout, tmp_blk_size;
+
+	csd->csd_structure = (uint8_t)((raw_csd[3U] &
+		0xC0000000U) >> 30U);
+	csd->read_time1 = (uint8_t)((raw_csd[3U] &
+		0xFF0000U) >> 16U);
+	csd->read_time2 = (uint8_t)((raw_csd[3U] &
+		0xFF00U) >> 8U);
+	csd->xfer_rate = (uint8_t)(raw_csd[3U] &
+		0xFFU);
+	csd->cmd_class = (uint16_t)((raw_csd[2U] &
+		0xFFF00000U) >> 20U);
+	csd->read_blk_len = (uint8_t)((raw_csd[2U] &
+		0xF0000U) >> 16U);
+	if (raw_csd[2U] & 0x8000U)
+		csd->flags |= SD_CSD_READ_BLK_PARTIAL_FLAG;
+	if (raw_csd[2U] & 0x4000U)
+		csd->flags |= SD_CSD_READ_BLK_PARTIAL_FLAG;
+	if (raw_csd[2U] & 0x2000U)
+		csd->flags |= SD_CSD_READ_BLK_MISALIGN_FLAG;
+	if (raw_csd[2U] & 0x1000U)
+		csd->flags |= SD_CSD_DSR_IMPLEMENTED_FLAG;
+
+	switch (csd->csd_structure) {
+	case 0:
+		csd->device_size = (uint32_t)((raw_csd[2U] &
+			0x3FFU) << 2U);
+		csd->device_size |= (uint32_t)((raw_csd[1U] &
+			0xC0000000U) >> 30U);
+		csd->read_current_min = (uint8_t)((raw_csd[1U] &
+			0x38000000U) >> 27U);
+		csd->read_current_max = (uint8_t)((raw_csd[1U] &
+			0x7000000U) >> 24U);
+		csd->write_current_min = (uint8_t)((raw_csd[1U] &
+			0xE00000U) >> 20U);
+		csd->write_current_max = (uint8_t)((raw_csd[1U] &
+			0x1C0000U) >> 18U);
+		csd->dev_size_mul = (uint8_t)((raw_csd[1U] &
+			0x38000U) >> 15U);
+
+		/* Get card total block count and block size. */
+		tmp_blk_cout = ((csd->device_size + 1U) <<
+			(csd->dev_size_mul + 2U));
+		tmp_blk_size = (1U << (csd->read_blk_len));
+		if (tmp_blk_size != SDMMC_DEFAULT_BLOCK_SIZE) {
+			tmp_blk_cout = (tmp_blk_cout * tmp_blk_size);
+			tmp_blk_size = SDMMC_DEFAULT_BLOCK_SIZE;
+			tmp_blk_cout = (tmp_blk_cout / tmp_blk_size);
+		}
+		if (blk_cout)
+			*blk_cout = tmp_blk_cout;
+		if (blk_size)
+			*blk_size = tmp_blk_size;
+		break;
+	case 1:
+		tmp_blk_size = SDMMC_DEFAULT_BLOCK_SIZE;
+
+		csd->device_size = (uint32_t)((raw_csd[2U] &
+			0x3FU) << 16U);
+		csd->device_size |= (uint32_t)((raw_csd[1U] &
+			0xFFFF0000U) >> 16U);
+
+		tmp_blk_cout = ((csd->device_size + 1U) * 1024U);
+		if (blk_cout)
+			*blk_cout = tmp_blk_cout;
+		if (blk_size)
+			*blk_size = tmp_blk_size;
+		break;
+	default:
+		break;
+	}
+
+	if ((uint8_t)((raw_csd[1U] & 0x4000U) >> 14U))
+		csd->flags |= SD_CSD_ERASE_BLK_EN_FLAG;
+	csd->erase_size = (uint8_t)((raw_csd[1U] &
+		0x3F80U) >> 7U);
+	csd->write_prtect_size = (uint8_t)(raw_csd[1U] &
+		0x7FU);
+	csd->write_speed_factor = (uint8_t)((raw_csd[0U] &
+		0x1C000000U) >> 26U);
+	csd->write_blk_len = (uint8_t)((raw_csd[0U] &
+		0x3C00000U) >> 22U);
+	if ((uint8_t)((raw_csd[0U] & 0x200000U) >> 21U))
+		csd->flags |= SD_CSD_WRITE_BLK_PARTIAL_FLAG;
+	if ((uint8_t)((raw_csd[0U] & 0x8000U) >> 15U))
+		csd->flags |= SD_CSD_FILE_FMT_GRP_FLAG;
+	if ((uint8_t)((raw_csd[0U] & 0x4000U) >> 14U))
+		csd->flags |= SD_CSD_COPY_FLAG;
+	if ((uint8_t)((raw_csd[0U] & 0x2000U) >> 13U))
+		csd->flags |=
+			SD_CSD_PERMANENT_WRITE_PROTECT_FLAG;
+	if ((uint8_t)((raw_csd[0U] & 0x1000U) >> 12U))
+		csd->flags |=
+			SD_CSD_TMP_WRITE_PROTECT_FLAG;
+	csd->file_fmt = (uint8_t)((raw_csd[0U] & 0xC00U) >> 10U);
+}
+
 static inline void sdmmc_decode_cid(struct sd_cid *cid,
 	uint32_t *raw_cid)
 {
@@ -297,6 +397,29 @@ static int sdmmc_request_rca(struct sd_card *card)
 	return 0;
 }
 
+/* Read card specific data register */
+static int sdmmc_read_csd(struct sd_card *card)
+{
+	struct sdhc_command cmd = {0};
+	int ret;
+
+	cmd.opcode = SD_SEND_CSD;
+	cmd.arg = (card->relative_addr << 16U);
+	cmd.response_type = SDHC_RSP_TYPE_R2;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+
+	ret = sdhc_request(card->sdhc, &cmd, NULL);
+	if (ret) {
+		LOG_DBG("CMD9 failed");
+		return ret;
+	}
+	sdmmc_decode_csd(&card->csd, cmd.response,
+		&card->block_count, &card->block_size);
+	LOG_DBG("Card block count %d, block size %d",
+		card->block_count, card->block_size);
+	return 0;
+}
+
 /*
  * Initializes SDMMC card. Note that the common SD function has already
  * sent CMD0 and CMD8 to the card at function entry.
@@ -341,6 +464,11 @@ int sdmmc_card_init(struct sd_card *card)
 	 * identification mode to data transfer mode
 	 */
 	ret = sdmmc_request_rca(card);
+	if (ret) {
+		return ret;
+	}
+	/* Card has entered data transfer mode. Get card specific data register */
+	ret = sdmmc_read_csd(card);
 	if (ret) {
 		return ret;
 	}
