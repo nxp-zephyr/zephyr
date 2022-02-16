@@ -136,6 +136,154 @@ static int imx_usdhc_reset(const struct device *dev)
 	return USDHC_Reset(cfg->base, kUSDHC_ResetAll, 100U) == true ? 0 : -ETIMEDOUT;
 }
 
+/* Wait for USDHC to gate clock when it is disabled */
+static inline void imx_usdhc_wait_clock_gate(USDHC_Type *base)
+{
+	uint32_t timeout = 1000;
+
+	while (timeout--) {
+		if (base->PRES_STATE & USDHC_PRES_STATE_SDOFF_MASK) {
+			break;
+		}
+	}
+	if (timeout == 0) {
+		LOG_WRN("SD clock did not gate in time");
+	}
+}
+
+/*
+ * Set SDHC io properties
+ */
+static int imx_usdhc_set_io(const struct device *dev, struct sdhc_io *ios)
+{
+	const struct usdhc_config *cfg = dev->config;
+	struct usdhc_data *data = dev->data;
+	uint32_t src_clk_hz, bus_clk;
+	struct sdhc_io *host_io = &data->host_io;
+
+	LOG_DBG("SDHC I/O: bus width %d, clock %dHz, card power %s, voltage %s",
+		ios->bus_width,
+		ios->clock,
+		ios->power_mode == SDHC_POWER_ON ? "ON" : "OFF",
+		ios->signal_voltage == SD_VOL_1_8_V ? "1.8V" : "3.3V"
+		);
+
+	if (clock_control_get_rate(cfg->clock_dev,
+				cfg->clock_subsys,
+				&src_clk_hz)) {
+		return -EINVAL;
+	}
+
+	if (ios->clock && (ios->clock > data->props.f_max || ios->clock < data->props.f_min)) {
+		return -EINVAL;
+	}
+
+	/* Set host clock */
+	if (host_io->clock != ios->clock) {
+		if (ios->clock != 0) {
+			/* Enable the clock output */
+			bus_clk = USDHC_SetSdClock(cfg->base, src_clk_hz, ios->clock);
+			if (bus_clk == 0) {
+				return -ENOTSUP;
+			}
+		}
+		host_io->clock = ios->clock;
+	}
+
+
+	/* Set bus width */
+	if (host_io->bus_width != ios->bus_width) {
+		switch (ios->bus_width) {
+		case SDHC_BUS_WIDTH1BIT:
+			USDHC_SetDataBusWidth(cfg->base, kUSDHC_DataBusWidth1Bit);
+			break;
+		case SDHC_BUS_WIDTH4BIT:
+			USDHC_SetDataBusWidth(cfg->base, kUSDHC_DataBusWidth4Bit);
+			break;
+		case SDHC_BUS_WIDTH8BIT:
+			USDHC_SetDataBusWidth(cfg->base, kUSDHC_DataBusWidth8Bit);
+			break;
+		default:
+			return -ENOTSUP;
+		}
+		host_io->bus_width = ios->bus_width;
+	}
+
+	/* Set host signal voltage */
+	if (ios->signal_voltage != host_io->signal_voltage) {
+		switch (ios->signal_voltage) {
+		case SD_VOL_3_3_V:
+		case SD_VOL_3_0_V:
+			UDSHC_SelectVoltage(cfg->base, false);
+			break;
+		case SD_VOL_1_8_V:
+			/**
+			 * USDHC peripheral deviates from SD spec here.
+			 * The host controller specification claims
+			 * the "SD clock enable" bit can be used to gate the SD
+			 * clock by clearing it. The USDHC controller does not
+			 * provide this bit, only a way to force the SD clock
+			 * on. We will instead delay 10 ms to allow the clock
+			 * to be gated for enough time, then force it on for
+			 * 10 ms, then allow it to be gated again.
+			 */
+			/* Switch to 1.8V */
+			UDSHC_SelectVoltage(cfg->base, true);
+			/* Wait 10 ms- clock will be gated during this period */
+			k_msleep(10);
+			/* Force the clock on */
+			USDHC_ForceClockOn(cfg->base, true);
+			/* Keep the clock on for a moment, so SD will recognize it */
+			k_msleep(10);
+			/* Stop forcing clock on */
+			USDHC_ForceClockOn(cfg->base, false);
+			break;
+		default:
+			return -ENOTSUP;
+		}
+		/* Save new host voltage */
+		host_io->signal_voltage = ios->signal_voltage;
+	}
+
+	/* Set card power */
+	if (host_io->power_mode != ios->power_mode) {
+		if (ios->power_mode == SDHC_POWER_OFF) {
+			gpio_pin_set(cfg->pwr_gpio, cfg->pwr_pin, 0);
+		} else if (ios->power_mode == SDHC_POWER_ON) {
+			gpio_pin_set(cfg->pwr_gpio, cfg->pwr_pin, 1);
+		}
+		host_io->power_mode = ios->power_mode;
+	}
+
+	/* Set I/O timing */
+	if (host_io->timing != ios->timing) {
+		switch (ios->timing) {
+		case SDHC_TIMING_LEGACY:
+		case SDHC_TIMING_HS:
+			break;
+		case SDHC_TIMING_SDR12:
+		case SDHC_TIMING_SDR25:
+			imxrt_usdhc_pinmux(cfg->nusdhc, false, 0, 7);
+			break;
+		case SDHC_TIMING_SDR50:
+			imxrt_usdhc_pinmux(cfg->nusdhc, false, 2, 7);
+			break;
+		case SDHC_TIMING_SDR104:
+		case SDHC_TIMING_DDR50:
+		case SDHC_TIMING_DDR52:
+		case SDHC_TIMING_HS200:
+		case SDHC_TIMING_HS400:
+			imxrt_usdhc_pinmux(cfg->nusdhc, false, 3, 7);
+			break;
+		default:
+			return -ENOTSUP;
+		}
+		host_io->timing = ios->timing;
+	}
+
+	return 0;
+}
+
 /*
  * Return 0 if card is not busy, 1 if it is
  */
@@ -209,6 +357,7 @@ static int imx_usdhc_init(const struct device *dev)
 
 static struct sdhc_driver_api usdhc_api = {
 	.reset = imx_usdhc_reset,
+	.set_io = imx_usdhc_set_io,
 	.card_busy = imx_usdhc_card_busy,
 	.get_host_props = imx_usdhc_get_host_props,
 };
