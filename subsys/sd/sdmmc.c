@@ -848,6 +848,26 @@ static int sdmmc_init_uhs(struct sd_card *card)
 	return ret;
 }
 
+/* Performs initialization for SD high speed cards */
+static int sdmmc_init_hs(struct sd_card *card)
+{
+	int ret;
+
+	if ((!card->host_props.host_caps.high_spd_support) ||
+		(card->sd_version < SD_SPEC_VER1_1) ||
+		(card->switch_caps.hs_max_dtr == 0)) {
+		/* No high speed support. Leave card untouched */
+		return 0;
+	}
+	card->card_speed = SD_TIMING_SDR25;
+	ret = sdmmc_set_bus_speed(card);
+	if (ret) {
+		LOG_ERR("Failed to switch card to HS mode");
+		return ret;
+	}
+	return 0;
+}
+
 /*
  * Initializes SDMMC card. Note that the common SD function has already
  * sent CMD0 and CMD8 to the card at function entry.
@@ -933,5 +953,12 @@ int sdmmc_card_init(struct sd_card *card)
 		if (ret) {
 			LOG_ERR("UHS card init failed");
 		}
+	} else {
+		/* Card is not UHS. Try to use high speed mode */
+		ret = sdmmc_init_hs(card);
+		if (ret) {
+			LOG_ERR("HS card init failed");
+		}
 	}
+	return ret;
 }
