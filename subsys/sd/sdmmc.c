@@ -533,6 +533,58 @@ static int sdmmc_read_scr(struct sd_card *card)
 }
 
 /*
+ * Sets bus width of host and card, following section 3.4 of
+ * SD host controller specification
+ */
+static int sdmmc_set_bus_width(struct sd_card *card, enum sdhc_bus_width width)
+{
+	struct sdhc_command cmd = {0};
+	int ret;
+
+	/*
+	 * The specification strictly requires card interrupts to be masked, but
+	 * Linux does not do so, so we won't either.
+	 */
+	/* Send ACMD6 to change bus width */
+	ret = sdmmc_app_command(card, card->relative_addr);
+	if (ret) {
+		LOG_DBG("SD app command failed for ACMD6");
+		return ret;
+	}
+	cmd.opcode = SD_APP_SET_BUS_WIDTH;
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+	switch (width) {
+	case SDHC_BUS_WIDTH1BIT:
+		cmd.arg = 0U;
+		break;
+	case SDHC_BUS_WIDTH4BIT:
+		cmd.arg = 2U;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+	/* Send app command */
+	ret = sdhc_request(card->sdhc, &cmd, NULL);
+	if (ret) {
+		LOG_DBG("Error on ACMD6: %d", ret);
+		return ret;
+	}
+	ret = sdmmc_check_response(&cmd);
+	if (ret) {
+		LOG_DBG("ACMD6 reports error, response 0x%x", cmd.response[0U]);
+		return ret;
+	}
+	/* Card now has changed bus width. Change host bus width */
+	card->bus_io.bus_width = width;
+	ret = sdhc_set_io(card->sdhc, &card->bus_io);
+	if (ret) {
+		LOG_DBG("Could not change host bus width");
+	}
+	return ret;
+}
+
+/*
  * Sends SD switch function CMD6.
  * See table 4-32 in SD physical specification for argument details.
  * When setting a function, we should set the 4 bit block of the command
@@ -597,6 +649,22 @@ static int sdmmc_read_switch(struct sd_card *card)
 		card->switch_caps.sd_current_limit = status[7];
 	}
 	return 0;
+}
+
+/*
+ * Init UHS capable SD card. Follows figure 3-16 in physical layer specification.
+ */
+static int sdmmc_init_uhs(struct sd_card *card)
+{
+	int ret;
+
+	/* Raise bus width to 4 bits */
+	ret = sdmmc_set_bus_width(card, SDHC_BUS_WIDTH4BIT);
+	if (ret) {
+		LOG_ERR("Failed to change card bus width to 4 bits");
+		return ret;
+	}
+
 }
 
 /*
@@ -678,5 +746,11 @@ int sdmmc_card_init(struct sd_card *card)
 	if (ret) {
 		LOG_ERR("Failed to read card functions");
 		return ret;
+	}
+	if ((card->flags & SDHC_1800MV_FLAG) && sdmmc_host_uhs(&card->host_props)) {
+		ret = sdmmc_init_uhs(card);
+		if (ret) {
+			LOG_ERR("UHS card init failed");
+		}
 	}
 }
