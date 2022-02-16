@@ -682,6 +682,27 @@ static inline void sdmmc_select_bus_speed(struct sd_card *card)
 	}
 }
 
+/* Selects driver type for SD card */
+static int sdmmc_select_driver_type(struct sd_card *card)
+{
+	int ret = 0;
+	uint8_t *status = card->card_buffer;
+
+	/*
+	 * We will only attempt to use driver type C over the default of type B,
+	 * since it should result in lower current consumption if supported.
+	 */
+	if (card->host_props.host_caps.drv_type_c_support &&
+		(card->switch_caps.sd_drv_type & SD_DRIVER_TYPE_C)) {
+		card->bus_io.driver_type = SD_DRIVER_TYPE_C;
+		/* Change drive strength */
+		ret = sdmmc_switch(card, SD_SWITCH_SET,
+			SD_GRP_DRIVER_STRENGTH_MODE,
+			(find_msb_set(SD_DRIVER_TYPE_C) - 1), status);
+	}
+	return ret;
+}
+
 /*
  * Init UHS capable SD card. Follows figure 3-16 in physical layer specification.
  */
@@ -699,6 +720,11 @@ static int sdmmc_init_uhs(struct sd_card *card)
 	/* Select bus speed for card depending on host and card capability*/
 	sdmmc_select_bus_speed(card);
 	/* Now, set the driver strength for the card */
+	ret = sdmmc_select_driver_type(card);
+	if (ret) {
+		LOG_DBG("Failed to select new driver type");
+		return ret;
+	}
 
 }
 
