@@ -17,6 +17,7 @@
 
 LOG_MODULE_DECLARE(sd, CONFIG_SD_LOG_LEVEL);
 
+
 static inline void sdmmc_decode_csd(struct sd_csd *csd,
 	uint32_t *raw_csd, uint32_t *blk_cout, uint32_t *blk_size)
 {
@@ -835,7 +836,16 @@ static int sdmmc_init_uhs(struct sd_card *card)
 		LOG_DBG("Failed to set card bus speed");
 		return ret;
 	}
-
+	if (card->card_speed == SD_TIMING_SDR50 ||
+		card->card_speed == SD_TIMING_SDR104 ||
+		card->card_speed == SD_TIMING_DDR50) {
+		/* SDR104, SDR50, and DDR50 mode need tuning */
+		ret = sdhc_execute_tuning(card->sdhc);
+		if (ret) {
+			LOG_ERR("SD tuning failed: %d", ret);
+		}
+	}
+	return ret;
 }
 
 /*
