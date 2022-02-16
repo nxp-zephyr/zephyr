@@ -117,6 +117,44 @@ static inline void sdmmc_decode_csd(struct sd_csd *csd,
 	csd->file_fmt = (uint8_t)((raw_csd[0U] & 0xC00U) >> 10U);
 }
 
+static inline void sdmmc_decode_scr(struct sd_scr *scr,
+	uint32_t *raw_scr, uint32_t *version)
+{
+	uint32_t tmp_version = 0;
+
+	scr->scr_structure = (uint8_t)((raw_scr[0U] & 0xF0000000U) >> 28U);
+	scr->sd_spec = (uint8_t)((raw_scr[0U] & 0xF000000U) >> 24U);
+	if ((uint8_t)((raw_scr[0U] & 0x800000U) >> 23U))
+		scr->flags |= SD_SCR_DATA_STATUS_AFTER_ERASE;
+	scr->sd_sec = (uint8_t)((raw_scr[0U] & 0x700000U) >> 20U);
+	scr->sd_width = (uint8_t)((raw_scr[0U] & 0xF0000U) >> 16U);
+	if ((uint8_t)((raw_scr[0U] & 0x8000U) >> 15U))
+		scr->flags |= SD_SCR_SPEC3;
+	scr->sd_ext_sec = (uint8_t)((raw_scr[0U] & 0x7800U) >> 10U);
+	scr->cmd_support = (uint8_t)(raw_scr[0U] & 0x3U);
+	scr->rsvd = raw_scr[1U];
+	/* Get specification version. */
+	switch (scr->sd_spec) {
+	case 0U:
+		tmp_version = SD_SPEC_VER1_0;
+		break;
+	case 1U:
+		tmp_version = SD_SPEC_VER1_1;
+		break;
+	case 2U:
+		tmp_version = SD_SPEC_VER2_0;
+		if (scr->flags & SD_SCR_SPEC3) {
+			tmp_version = SD_SPEC_VER3_0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	if (version && tmp_version)
+		*version = tmp_version;
+}
+
 static inline void sdmmc_decode_cid(struct sd_cid *cid,
 	uint32_t *raw_cid)
 {
@@ -443,6 +481,57 @@ static int sdmmc_select_card(struct sd_card *card)
 	return 0;
 }
 
+/* Reads SD configuration register */
+static int sdmmc_read_scr(struct sd_card *card)
+{
+	struct sdhc_command cmd = {0};
+	struct sdhc_data data = {0};
+	int ret;
+	/* DMA onto stack is unsafe, so we use an internal card buffer */
+	uint32_t *scr = (uint32_t *)card->card_buffer;
+	uint32_t raw_scr[2];
+
+	ret = sdmmc_app_command(card, card->relative_addr);
+	if (ret) {
+		LOG_DBG("SD app command failed for SD SCR");
+		return ret;
+	}
+
+	cmd.opcode = SD_APP_SEND_SCR;
+	cmd.arg = 0;
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+
+	data.block_size = 8U;
+	data.blocks = 1U;
+	data.data = scr;
+	data.timeout_ms = CONFIG_SD_DATA_TIMEOUT;
+
+	ret = sdhc_request(card->sdhc, &cmd, &data);
+	if (ret) {
+		LOG_DBG("ACMD51 failed: %d", ret);
+		return ret;
+	}
+	/* Decode SCR */
+	raw_scr[0] = sys_be32_to_cpu(scr[0]);
+	raw_scr[1] = sys_be32_to_cpu(scr[1]);
+	sdmmc_decode_scr(&card->scr, raw_scr, &card->sd_version);
+	LOG_DBG("SD reports specification version %d", card->sd_version);
+	/* Check card supported bus width */
+	if (card->scr.sd_width & 0x4U) {
+		card->flags |= SDHC_4BITS_WIDTH;
+	}
+	/* Check if card supports speed class command (CMD20) */
+	if (card->scr.cmd_support & 0x1U) {
+		card->flags |= SDHC_SPEED_CLASS_CONTROL_FLAG;
+	}
+	/* Check for set block count (CMD 23) support */
+	if (card->scr.cmd_support & 0x2U) {
+		card->flags |= SDHC_CMD23_FLAG;
+	}
+	return 0;
+}
+
 /*
  * Initializes SDMMC card. Note that the common SD function has already
  * sent CMD0 and CMD8 to the card at function entry.
@@ -497,6 +586,23 @@ int sdmmc_card_init(struct sd_card *card)
 	}
 	/* Move the card to transfer state (with CMD7) to run remaining commands */
 	ret = sdmmc_select_card(card);
+	if (ret) {
+		return ret;
+	}
+	/*
+	 * With card in data transfer state, we can set SD clock to maximum
+	 * frequency for non high speed mode (25Mhz)
+	 */
+	card->bus_io.clock = SD_CLOCK_25MHZ;
+	ret = sdhc_set_io(card->sdhc, &card->bus_io);
+	if (ret) {
+		LOG_ERR("Failed to raise bus frequency to 25MHz");
+		return ret;
+	}
+	/* Read SD SCR (SD configuration register),
+	 * to get supported bus width
+	 */
+	ret = sdmmc_read_scr(card);
 	if (ret) {
 		return ret;
 	}
