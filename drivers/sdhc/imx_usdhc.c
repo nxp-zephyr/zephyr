@@ -80,6 +80,32 @@ struct usdhc_data {
 	uint32_t dma_descriptor_len; /* DMA descriptor table length in words */
 };
 
+static int imx_usdhc_dat3_pull(const struct usdhc_config *cfg, bool pullup)
+{
+	int ret = 0U;
+
+	/* Call board specific function to pull down DAT3 */
+	imxrt_usdhc_dat3_pull(pullup);
+#ifdef CONFIG_IMX_USDHC_DAT3_PWR_TOGGLE
+	if (!pullup) {
+		/* Power off the card to clear DAT3 legacy status */
+		if (cfg->pwr_gpio) {
+			ret = gpio_pin_set(cfg->pwr_gpio, cfg->pwr_pin, 0);
+			if (ret) {
+				return ret;
+			}
+			/* Delay for card power off to complete */
+			k_msleep(cfg->power_delay_ms);
+			ret = gpio_pin_set(cfg->pwr_gpio, cfg->pwr_pin, 1);
+			if (ret) {
+				return ret;
+			}
+		}
+	}
+#endif
+	return ret;
+}
+
 /*
  * Initialize SDHC host properties for use in get_host_props api call
  */
@@ -300,6 +326,31 @@ static int imx_usdhc_card_busy(const struct device *dev)
 }
 
 /*
+ * Get card presence
+ */
+static int imx_usdhc_get_card_present(const struct device *dev)
+{
+	const struct usdhc_config *cfg = dev->config;
+	bool card_inserted = false;
+
+	if (cfg->detect_dat3) {
+		/* Detect card presence with DAT3 line pull */
+		USDHC_CardDetectByData3(cfg->base, true);
+		imx_usdhc_dat3_pull(cfg, false);
+		card_inserted = USDHC_DetectCardInsert(cfg->base);
+		/* Clear card detection and pull */
+		imx_usdhc_dat3_pull(cfg, true);
+		USDHC_CardDetectByData3(cfg->base, false);
+	} else if (cfg->detect_gpio) {
+		card_inserted = gpio_pin_get(cfg->detect_gpio, cfg->detect_pin) > 0;
+	} else {
+		LOG_WRN("No card presence method configured, assuming card is present");
+		card_inserted = true;
+	}
+	return ((int)card_inserted);
+}
+
+/*
  * Get host properties
  */
 static int imx_usdhc_get_host_props(const struct device *dev,
@@ -358,6 +409,7 @@ static int imx_usdhc_init(const struct device *dev)
 static struct sdhc_driver_api usdhc_api = {
 	.reset = imx_usdhc_reset,
 	.set_io = imx_usdhc_set_io,
+	.get_card_present = imx_usdhc_get_card_present,
 	.card_busy = imx_usdhc_card_busy,
 	.get_host_props = imx_usdhc_get_host_props,
 };
