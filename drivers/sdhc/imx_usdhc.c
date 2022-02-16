@@ -81,6 +81,37 @@ struct usdhc_data {
 };
 
 /*
+ * Initialize SDHC host properties for use in get_host_props api call
+ */
+static void imx_usdhc_init_host_props(const struct device *dev)
+{
+	const struct usdhc_config *cfg = dev->config;
+	struct usdhc_data *data = dev->data;
+	usdhc_capability_t caps;
+	struct sdhc_host_props *props = &data->props;
+
+	memset(props, 0, sizeof(struct sdhc_host_props));
+	props->f_max = cfg->max_bus_freq;
+	props->f_min = cfg->min_bus_freq;
+	props->max_current_330 = cfg->max_current_330;
+	props->max_current_180 = cfg->max_current_180;
+	props->power_delay = cfg->power_delay_ms;
+	/* Read host capabilities */
+	USDHC_GetCapability(cfg->base, &caps);
+	props->host_caps.vol_180_support = (bool)(caps.flags & kUSDHC_SupportV180Flag);
+	props->host_caps.vol_300_support = (bool)(caps.flags & kUSDHC_SupportV300Flag);
+	props->host_caps.vol_330_support = (bool)(caps.flags & kUSDHC_SupportV330Flag);
+	props->host_caps.suspend_res_support = (bool)(caps.flags & kUSDHC_SupportSuspendResumeFlag);
+	props->host_caps.sdma_support = (bool)(caps.flags & kUSDHC_SupportDmaFlag);
+	props->host_caps.high_spd_support = (bool)(caps.flags & kUSDHC_SupportHighSpeedFlag);
+	props->host_caps.adma_2_support = (bool)(caps.flags & kUSDHC_SupportAdmaFlag);
+	props->host_caps.max_blk_len = (bool)(caps.maxBlockLength);
+	props->host_caps.ddr50_support = (bool)(caps.flags & kUSDHC_SupportDDR50Flag);
+	props->host_caps.sdr104_support = (bool)(caps.flags & kUSDHC_SupportSDR104Flag);
+	props->host_caps.sdr50_support = (bool)(caps.flags & kUSDHC_SupportSDR50Flag);
+}
+
+/*
  * Return 0 if card is not busy, 1 if it is
  */
 static int imx_usdhc_card_busy(const struct device *dev)
@@ -93,6 +124,18 @@ static int imx_usdhc_card_busy(const struct device *dev)
 		kUSDHC_Data2LineLevelFlag |
 		kUSDHC_Data3LineLevelFlag))
 		? 0 : 1;
+}
+
+/*
+ * Get host properties
+ */
+static int imx_usdhc_get_host_props(const struct device *dev,
+	struct sdhc_host_props *props)
+{
+	struct usdhc_data *data = dev->data;
+
+	memcpy(props, &data->props, sizeof(struct sdhc_host_props));
+	return 0;
 }
 
 /*
@@ -118,6 +161,8 @@ static int imx_usdhc_init(const struct device *dev)
 	host_config.readWatermarkLevel = cfg->read_watermark;
 	host_config.writeWatermarkLevel = cfg->write_watermark;
 	USDHC_Init(cfg->base, &host_config);
+	/* Read host controller properties */
+	imx_usdhc_init_host_props(dev);
 	/* Set power GPIO low, so card starts powered off */
 	if (cfg->pwr_gpio) {
 		ret = gpio_pin_configure(cfg->pwr_gpio, cfg->pwr_pin,
@@ -139,6 +184,7 @@ static int imx_usdhc_init(const struct device *dev)
 
 static struct sdhc_driver_api usdhc_api = {
 	.card_busy = imx_usdhc_card_busy,
+	.get_host_props = imx_usdhc_get_host_props,
 };
 
 #define IMX_USDHC_INIT_NONE(n)
