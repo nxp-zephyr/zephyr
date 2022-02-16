@@ -1007,3 +1007,123 @@ static int sdmmc_wait_ready(struct sd_card *card)
 	} while (busy && (timeout > 0));
 	return busy;
 }
+
+static int sdmmc_read(struct sd_card *card, uint8_t *rbuf,
+	uint32_t start_block, uint32_t num_blocks)
+{
+	int ret;
+	struct sdhc_command cmd = {0};
+	struct sdhc_data data = {0};
+
+	/*
+	 * Note: The SD specification allows for CMD23 to be sent before a
+	 * transfer in order to set the block length (often preferable).
+	 * The specification also requires that CMD12 be sent to stop a transfer.
+	 * However, the host specification defines support for "Auto CMD23" and
+	 * "Auto CMD12", where the host sends CMD23 and CMD12 automatically to
+	 * remove the overhead of interrupts in software from sending these
+	 * commands. Therefore, we will not handle CMD12 or CMD23 at this layer.
+	 * The host SDHC driver is expected to recognize CMD17, CMD18, CMD24,
+	 * and CMD25 as special read/write commands and handle CMD23 and
+	 * CMD12 appropriately.
+	 */
+	cmd.opcode = (num_blocks == 1U) ? SD_READ_SINGLE_BLOCK : SD_READ_MULTIPLE_BLOCK;
+	if (!(card->flags & SDHC_HIGH_CAPACITY_FLAG)) {
+		/* SDSC cards require block size in bytes, not blocks */
+		cmd.arg = start_block * card->block_size;
+	} else {
+		cmd.arg = start_block;
+	}
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+	cmd.retries = CONFIG_SD_DATA_RETRIES;
+
+	data.block_addr = start_block;
+	data.block_size = card->block_size;
+	data.blocks = num_blocks;
+	data.data = rbuf;
+	data.timeout_ms = CONFIG_SD_DATA_TIMEOUT;
+
+	LOG_DBG("READ: Sector = %u, Count = %u", start_block, num_blocks);
+
+	ret = sdhc_request(card->sdhc, &cmd, &data);
+	if (ret) {
+		LOG_ERR("Failed to read from SDMMC %d", ret);
+		return ret;
+	}
+	return 0;
+}
+
+/* Reads data from SD card memory card */
+int sdmmc_read_blocks(struct sd_card *card, uint8_t *rbuf,
+	uint32_t start_block, uint32_t num_blocks)
+{
+	int ret;
+	uint32_t rlen;
+	uint32_t sector;
+	uint8_t *buf_offset;
+
+	if ((start_block + num_blocks) > card->block_count) {
+		return -EINVAL;
+	}
+	if (card->type == CARD_SDIO) {
+		LOG_WRN("SDIO does not support MMC commands");
+		return -ENOTSUP;
+	}
+	ret = k_mutex_lock(&card->lock, K_NO_WAIT);
+	if (ret) {
+		LOG_WRN("Could not get SD card mutex");
+		return -EBUSY;
+	}
+
+	/*
+	 * If the buffer we are provided with is aligned, we can use it
+	 * directly. Otherwise, we need to use the card's internal buffer
+	 * and memcpy the data back out
+	 */
+	if ((((uint32_t)rbuf) & (CONFIG_SDHC_BUFFER_ALIGNMENT - 1)) != 0) {
+		/* lower bits of address are set, not aligned. Use internal buffer */
+		LOG_DBG("Unaligned buffer access to SD card may incur performance penalty");
+		if (sizeof(card->card_buffer) < card->block_size) {
+			LOG_ERR("Card buffer size needs to be increased for "
+				"unaligned writes to work");
+			k_mutex_unlock(&card->lock);
+			return -ENOBUFS;
+		}
+		rlen = sizeof(card->card_buffer) / card->block_size;
+		sector = 0;
+		buf_offset = rbuf;
+		while (sector < num_blocks) {
+			/* Read from disk to card buffer */
+			ret = sdmmc_read(card, card->card_buffer,
+				sector + start_block, rlen);
+			if (ret) {
+				LOG_ERR("Write failed");
+				k_mutex_unlock(&card->lock);
+				return ret;
+			}
+			/* Copy data from card buffer */
+			memcpy(buf_offset, card->card_buffer, rlen * card->block_size);
+			/* Increase sector count and buffer offset */
+			sector += rlen;
+			buf_offset += rlen * card->block_size;
+		}
+	} else {
+		/* Aligned buffers can be used directly */
+		ret = sdmmc_read(card, rbuf, start_block, num_blocks);
+		if (ret) {
+			LOG_ERR("Card read failed");
+			k_mutex_unlock(&card->lock);
+			return ret;
+		}
+	}
+	/* Verify card is back in transfer state after read */
+	ret = sdmmc_wait_ready(card);
+	if (ret) {
+		LOG_ERR("Card did not return to ready state");
+		k_mutex_unlock(&card->lock);
+		return -ETIMEDOUT;
+	}
+	k_mutex_unlock(&card->lock);
+	return 0;
+}
