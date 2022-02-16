@@ -962,3 +962,48 @@ int sdmmc_card_init(struct sd_card *card)
 	}
 	return ret;
 }
+
+/* Read card status. Return 0 if card is inactive */
+static int sdmmc_read_status(struct sd_card *card)
+{
+	struct sdhc_command cmd = {0};
+	int ret;
+
+	cmd.opcode = SD_SEND_STATUS;
+	cmd.arg = (card->relative_addr << 16U);
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+
+	ret = sdhc_request(card->sdhc, &cmd, NULL);
+	if (ret) {
+		return SD_RETRY;
+	}
+	/* Check card response */
+	if ((cmd.response[0U] & SDHC_R1READY_FOR_DATA) &&
+		(SD_R1_CURRENT_STATE(cmd.response[0U]) == SDMMC_R1_TRANSFER)) {
+		return 0;
+	}
+	/* Valid response, the card is busy */
+	return -EBUSY;
+}
+
+/* Waits for SD card to be ready for data. Returns 0 if card is ready */
+static int sdmmc_wait_ready(struct sd_card *card)
+{
+	int ret, timeout = CONFIG_SD_DATA_TIMEOUT;
+	bool busy = true;
+
+	do {
+		busy = sdhc_card_busy(card->sdhc);
+		if (!busy) {
+			/* Check card status */
+			ret = sd_retry(sdmmc_read_status, card, CONFIG_SD_RETRY_COUNT);
+			busy = (ret != 0);
+		} else {
+			/* Delay 125us before polling again */
+			k_busy_wait(125);
+			timeout -= 125;
+		}
+	} while (busy && (timeout > 0));
+	return busy;
+}
