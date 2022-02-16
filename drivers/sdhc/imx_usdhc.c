@@ -81,6 +81,21 @@ struct usdhc_data {
 };
 
 /*
+ * Return 0 if card is not busy, 1 if it is
+ */
+static int imx_usdhc_card_busy(const struct device *dev)
+{
+	const struct usdhc_config *cfg = dev->config;
+
+	return (USDHC_GetPresentStatusFlags(cfg->base)
+		& (kUSDHC_Data0LineLevelFlag |
+		kUSDHC_Data1LineLevelFlag |
+		kUSDHC_Data2LineLevelFlag |
+		kUSDHC_Data3LineLevelFlag))
+		? 0 : 1;
+}
+
+/*
  * Perform early system init for SDHC
  */
 static int imx_usdhc_init(const struct device *dev)
@@ -123,6 +138,7 @@ static int imx_usdhc_init(const struct device *dev)
 }
 
 static struct sdhc_driver_api usdhc_api = {
+	.card_busy = imx_usdhc_card_busy,
 };
 
 #define IMX_USDHC_INIT_NONE(n)
