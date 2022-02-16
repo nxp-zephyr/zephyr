@@ -703,6 +703,47 @@ static int sdmmc_select_driver_type(struct sd_card *card)
 	return ret;
 }
 
+/* Sets current limit for SD card */
+static int sdmmc_set_current_limit(struct sd_card *card)
+{
+	int ret;
+	int max_current = -1;
+	uint8_t *status = card->card_buffer;
+
+	if ((card->card_speed != SD_TIMING_SDR50) &&
+		(card->card_speed != SD_TIMING_SDR104) &&
+		(card->card_speed != SD_TIMING_DDR50)) {
+		return 0; /* Cannot set current limit */
+	} else if (card->host_props.max_current_180 >= 800 &&
+		(card->switch_caps.sd_current_limit & SD_MAX_CURRENT_800MA)) {
+		max_current = SD_SET_CURRENT_800MA;
+	} else if (card->host_props.max_current_180 >= 600 &&
+		(card->switch_caps.sd_current_limit & SD_MAX_CURRENT_600MA)) {
+		max_current = SD_SET_CURRENT_600MA;
+	} else if (card->host_props.max_current_180 >= 400 &&
+		(card->switch_caps.sd_current_limit & SD_MAX_CURRENT_400MA)) {
+		max_current = SD_SET_CURRENT_400MA;
+	} else if (card->host_props.max_current_180 >= 200 &&
+		(card->switch_caps.sd_current_limit & SD_MAX_CURRENT_200MA)) {
+		max_current = SD_SET_CURRENT_200MA;
+	}
+	if (max_current != -1) {
+		LOG_DBG("Changing SD current limit: %d", max_current);
+		/* Switch SD current */
+		ret = sdmmc_switch(card, SD_SWITCH_SET, SD_GRP_CURRENT_LIMIT_MODE,
+			max_current, status);
+		if (ret) {
+			LOG_DBG("Failed to set SD current limit");
+			return ret;
+		}
+		if (((status[15] >> 4) & 0x0F) != max_current) {
+			/* Status response indicates card did not select request limit */
+			LOG_WRN("Card did not accept current limit");
+		}
+	}
+	return 0;
+}
+
 /*
  * Init UHS capable SD card. Follows figure 3-16 in physical layer specification.
  */
@@ -723,6 +764,11 @@ static int sdmmc_init_uhs(struct sd_card *card)
 	ret = sdmmc_select_driver_type(card);
 	if (ret) {
 		LOG_DBG("Failed to select new driver type");
+		return ret;
+	}
+	ret = sdmmc_set_current_limit(card);
+	if (ret) {
+		LOG_DBG("Failed to set card current limit");
 		return ret;
 	}
 
