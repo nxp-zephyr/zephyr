@@ -271,6 +271,33 @@ static int sdmmc_read_cid(struct sd_card *card)
 }
 
 /*
+ * Requests card to publish a new relative card address, and move from
+ * identification to data mode
+ */
+static int sdmmc_request_rca(struct sd_card *card)
+{
+	struct sdhc_command cmd = {0};
+	int ret;
+
+	cmd.opcode = SD_SEND_RELATIVE_ADDR;
+	cmd.arg = 0;
+	cmd.response_type = SDHC_RSP_TYPE_R6;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+	/* Issue CMD3 until card responds with nonzero RCA */
+	do {
+		ret = sdhc_request(card->sdhc, &cmd, NULL);
+		if (ret) {
+			LOG_DBG("CMD3 failed");
+			return ret;
+		}
+		/* Card RCA is in upper 16 bits of response */
+		card->relative_addr = ((cmd.response[0U] & 0xFFFF0000) >> 16U);
+	} while (card->relative_addr == 0U);
+	LOG_DBG("Card relative addr: %d", card->relative_addr);
+	return 0;
+}
+
+/*
  * Initializes SDMMC card. Note that the common SD function has already
  * sent CMD0 and CMD8 to the card at function entry.
  */
@@ -306,6 +333,14 @@ int sdmmc_card_init(struct sd_card *card)
 	}
 	/* Read the card's CID (card identification register) */
 	ret = sdmmc_read_cid(card);
+	if (ret) {
+		return ret;
+	}
+	/*
+	 * Request new relative card address. This moves the card from
+	 * identification mode to data transfer mode
+	 */
+	ret = sdmmc_request_rca(card);
 	if (ret) {
 		return ret;
 	}
