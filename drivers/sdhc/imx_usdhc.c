@@ -112,6 +112,31 @@ static void imx_usdhc_init_host_props(const struct device *dev)
 }
 
 /*
+ * Reset USDHC controller
+ */
+static int imx_usdhc_reset(const struct device *dev)
+{
+	const struct usdhc_config *cfg = dev->config;
+	/* Switch to default I/O voltage of 3.3V */
+	UDSHC_SelectVoltage(cfg->base, false);
+	USDHC_EnableDDRMode(cfg->base, false, 0U);
+#if defined(FSL_FEATURE_USDHC_HAS_SDR50_MODE) && (FSL_FEATURE_USDHC_HAS_SDR50_MODE)
+	USDHC_EnableStandardTuning(cfg->base, 0, 0, false);
+	USDHC_EnableAutoTuning(cfg->base, false);
+#endif
+
+#if FSL_FEATURE_USDHC_HAS_HS400_MODE
+	/* Disable HS400 mode */
+	USDHC_EnableHS400Mode(cfg->base, false);
+	/* Disable DLL */
+	USDHC_EnableStrobeDLL(cfg->base, false);
+#endif
+
+	/* Reset data/command/tuning circuit */
+	return USDHC_Reset(cfg->base, kUSDHC_ResetAll, 100U) == true ? 0 : -ETIMEDOUT;
+}
+
+/*
  * Return 0 if card is not busy, 1 if it is
  */
 static int imx_usdhc_card_busy(const struct device *dev)
@@ -183,6 +208,7 @@ static int imx_usdhc_init(const struct device *dev)
 }
 
 static struct sdhc_driver_api usdhc_api = {
+	.reset = imx_usdhc_reset,
 	.card_busy = imx_usdhc_card_busy,
 	.get_host_props = imx_usdhc_get_host_props,
 };
