@@ -142,6 +142,91 @@ static int sdmmc_send_ocr(struct sd_card *card)
 }
 
 /*
+ * Implements signal voltage switch procedure described in section 3.6.1 of
+ * SD specification.
+ */
+static int sdmmc_switch_voltage(struct sd_card *card)
+{
+	int ret, sd_clock;
+	struct sdhc_command cmd = {0};
+
+	/* Check to make sure card supports 1.8V */
+	if (!(card->flags & SDHC_1800MV_FLAG)) {
+		/* Do not attempt to switch voltages */
+		LOG_WRN("SD card reports as SDHC/SDXC, but does not support 1.8V");
+		return 0;
+	}
+	/* Send CMD11 to request a voltage switch */
+	cmd.opcode = SD_VOL_SWITCH;
+	cmd.arg = 0U;
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+	ret = sdhc_request(card->sdhc, &cmd, NULL);
+	if (ret) {
+		LOG_DBG("CMD11 failed");
+		return ret;
+	}
+	/* Check R1 response for error */
+	ret = sdmmc_check_response(&cmd);
+	if (ret) {
+		LOG_DBG("SD response to CMD11 indicates error");
+		return ret;
+	}
+	/*
+	 * Card should drive CMD and DAT[3:0] signals low at the next clock
+	 * cycle. Some cards will only drive these
+	 * lines low briefly, so we should check as soon as possible
+	 */
+	if (!(sdhc_card_busy(card->sdhc))) {
+		/* Delay 1ms to allow card to drive lines low */
+		sd_delay(1);
+		if (!sdhc_card_busy(card->sdhc)) {
+			/* Card did not drive CMD and DAT lines low */
+			LOG_DBG("Card did not drive DAT lines low");
+			return -EAGAIN;
+		}
+	}
+	/*
+	 * Per SD spec (section "Timing to Switch Signal Voltage"),
+	 * host must gate clock at least 5ms.
+	 */
+	sd_clock = card->bus_io.clock;
+	card->bus_io.clock = 0;
+	ret = sdhc_set_io(card->sdhc, &card->bus_io);
+	if (ret) {
+		LOG_DBG("Failed to gate SD clock");
+		return ret;
+	}
+	/* Now that clock is gated, change signal voltage */
+	card->bus_io.signal_voltage = SD_VOL_1_8_V;
+	ret = sdhc_set_io(card->sdhc, &card->bus_io);
+	if (ret) {
+		LOG_DBG("Failed to switch SD host to 1.8V");
+		return ret;
+	}
+	sd_delay(10); /* Gate for 10ms, even though spec requires 5 */
+	/* Restart the clock */
+	card->bus_io.clock = sd_clock;
+	ret = sdhc_set_io(card->sdhc, &card->bus_io);
+	if (ret) {
+		LOG_ERR("Failed to restart SD clock");
+		return ret;
+	}
+	/*
+	 * If SD does not drive at least one of
+	 * DAT[3:0] high within 1ms, switch failed
+	 */
+	sd_delay(1);
+	if (sdhc_card_busy(card->sdhc)) {
+		LOG_DBG("Card failed to switch voltages");
+		return -EAGAIN;
+	}
+	card->card_voltage = SD_VOL_1_8_V;
+	LOG_INF("Card switched to 1.8V signaling");
+	return 0;
+}
+
+/*
  * Initializes SDMMC card. Note that the common SD function has already
  * sent CMD0 and CMD8 to the card at function entry.
  */
@@ -154,5 +239,25 @@ int sdmmc_card_init(struct sd_card *card)
 	if (ret) {
 		LOG_ERR("Failed to query card OCR");
 		return ret;
+	}
+	/*
+	 * If card is high capacity (SDXC or SDHC), and supports 1.8V signaling,
+	 * switch to new signal voltage using "signal voltage switch procedure"
+	 * described in SD specification
+	 */
+	if ((card->flags & SDHC_1800MV_FLAG) &&
+		(card->host_props.host_caps.vol_180_support)) {
+		ret = sdmmc_switch_voltage(card);
+		if (ret) {
+			/* Disable host support for 1.8 V */
+			card->host_props.host_caps.vol_180_support = false;
+			/*
+			 * The host or SD card may have already switched to
+			 * 1.8V. Return SD_RESTART to indicate
+			 * negotiation should be restarted.
+			 */
+			card->status = CARD_ERROR;
+			return SD_RESTART;
+		}
 	}
 }
