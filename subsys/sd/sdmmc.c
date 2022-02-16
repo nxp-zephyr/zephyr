@@ -533,6 +533,73 @@ static int sdmmc_read_scr(struct sd_card *card)
 }
 
 /*
+ * Sends SD switch function CMD6.
+ * See table 4-32 in SD physical specification for argument details.
+ * When setting a function, we should set the 4 bit block of the command
+ * argument corresponding to that function to "value", and all other 4 bit
+ * blocks should be left as 0xF (no effect on current function)
+ */
+static int sdmmc_switch(struct sd_card *card, enum sd_switch_arg mode,
+	enum sd_group_num group, uint8_t value, uint8_t *response)
+{
+	struct sdhc_command cmd = {0};
+	struct sdhc_data data = {0};
+
+	cmd.opcode = SD_SWITCH;
+	cmd.arg = ((mode & 0x1) << 31) | 0x00FFFFFF;
+	cmd.arg &= ~(0xFU << (group * 4));
+	cmd.arg |= (value & 0xF) << (group * 4);
+	cmd.response_type = SDHC_RSP_TYPE_R1;
+	cmd.timeout_ms = CONFIG_SD_CMD_TIMEOUT;
+
+	data.block_size = 64U;
+	data.blocks = 1;
+	data.data = response;
+	data.timeout_ms = CONFIG_SD_DATA_TIMEOUT;
+
+	return sdhc_request(card->sdhc, &cmd, &data);
+}
+
+static int sdmmc_read_switch(struct sd_card *card)
+{
+	uint8_t *status;
+	int ret;
+
+	if (card->sd_version < SD_SPEC_VER1_1) {
+		/* Switch not supported */
+		LOG_INF("SD spec 1.01 does not support CMD6");
+		return 0;
+	}
+	/* Use card internal buffer to read 64 byte switch data */
+	status = card->card_buffer;
+	/**
+	 * Setting switch to zero will read card's support values,
+	 * otherwise known as SD "check function"
+	 */
+	ret = sdmmc_switch(card, SD_SWITCH_CHECK, 0, 0, status);
+	if (ret) {
+		LOG_DBG("CMD6 failed %d", ret);
+		return ret;
+	}
+	/*
+	 * See table 4-11 and 4.3.10.4 of physical layer specification for
+	 * bit definitions. Note that response is big endian, so index 13 will
+	 * read bits 400-408.
+	 * Bit n being set in support bit field indicates support for function
+	 * number n on the card. (So 0x3 indicates support for functions 0 and 1)
+	 */
+	if (status[13] & HIGH_SPEED_BUS_SPEED) {
+		card->switch_caps.hs_max_dtr = HS_MAX_DTR;
+	}
+	if (card->sd_version >= SD_SPEC_VER3_0) {
+		card->switch_caps.bus_speed = status[13];
+		card->switch_caps.sd_drv_type = status[9];
+		card->switch_caps.sd_current_limit = status[7];
+	}
+	return 0;
+}
+
+/*
  * Initializes SDMMC card. Note that the common SD function has already
  * sent CMD0 and CMD8 to the card at function entry.
  */
@@ -604,6 +671,12 @@ int sdmmc_card_init(struct sd_card *card)
 	 */
 	ret = sdmmc_read_scr(card);
 	if (ret) {
+		return ret;
+	}
+	/* Read switch capabilities to determine what speeds card supports */
+	ret = sdmmc_read_switch(card);
+	if (ret) {
+		LOG_ERR("Failed to read card functions");
 		return ret;
 	}
 }
