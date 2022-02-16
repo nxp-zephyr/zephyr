@@ -651,6 +651,37 @@ static int sdmmc_read_switch(struct sd_card *card)
 	return 0;
 }
 
+/* Returns 1 if host supports UHS, zero otherwise */
+static inline int sdmmc_host_uhs(struct sdhc_host_props *props)
+{
+	return (props->host_caps.sdr50_support |
+		props->host_caps.uhs_2_support |
+		props->host_caps.sdr104_support |
+		props->host_caps.ddr50_support)
+		& (props->host_caps.vol_180_support);
+}
+
+static inline void sdmmc_select_bus_speed(struct sd_card *card)
+{
+	/*
+	 * Note that function support is defined using bitfields, but function
+	 * selection is defined using values 0x0-0xF.
+	 */
+	if (card->host_props.host_caps.sdr104_support &&
+		(card->switch_caps.bus_speed & UHS_SDR104_BUS_SPEED)) {
+		card->card_speed = SD_TIMING_SDR104;
+	} else if (card->host_props.host_caps.ddr50_support &&
+		(card->switch_caps.bus_speed & UHS_DDR50_BUS_SPEED)) {
+		card->card_speed = SD_TIMING_DDR50;
+	} else if (card->host_props.host_caps.sdr50_support &&
+		(card->switch_caps.bus_speed & UHS_SDR50_BUS_SPEED)) {
+		card->card_speed = SD_TIMING_SDR50;
+	} else if (card->host_props.host_caps.high_spd_support &&
+		(card->switch_caps.bus_speed & UHS_SDR12_BUS_SPEED)) {
+		card->card_speed = SD_TIMING_SDR12;
+	}
+}
+
 /*
  * Init UHS capable SD card. Follows figure 3-16 in physical layer specification.
  */
@@ -664,6 +695,10 @@ static int sdmmc_init_uhs(struct sd_card *card)
 		LOG_ERR("Failed to change card bus width to 4 bits");
 		return ret;
 	}
+
+	/* Select bus speed for card depending on host and card capability*/
+	sdmmc_select_bus_speed(card);
+	/* Now, set the driver strength for the card */
 
 }
 
