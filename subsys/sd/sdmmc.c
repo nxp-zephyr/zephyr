@@ -744,6 +744,64 @@ static int sdmmc_set_current_limit(struct sd_card *card)
 	return 0;
 }
 
+/* Applies selected card bus speed to card and host */
+static int sdmmc_set_bus_speed(struct sd_card *card)
+{
+	int ret;
+	int timing = 0;
+	uint8_t *status = card->card_buffer;
+
+	card->bus_io.timing = card->card_speed;
+	switch (card->card_speed) {
+	/* Set bus clock speed */
+	case SD_TIMING_SDR104:
+		card->switch_caps.uhs_max_dtr = UHS_SDR104_MAX_DTR;
+		timing = SDHC_TIMING_SDR104;
+		break;
+	case SD_TIMING_DDR50:
+		card->switch_caps.uhs_max_dtr = UHS_DDR50_MAX_DTR;
+		timing = SDHC_TIMING_DDR50;
+		break;
+	case SD_TIMING_SDR50:
+		card->switch_caps.uhs_max_dtr = UHS_SDR50_MAX_DTR;
+		timing = SDHC_TIMING_SDR50;
+		break;
+	case SD_TIMING_SDR25:
+		card->switch_caps.uhs_max_dtr = UHS_SDR25_MAX_DTR;
+		timing = SDHC_TIMING_SDR25;
+		break;
+	case SD_TIMING_SDR12:
+		card->switch_caps.uhs_max_dtr = UHS_SDR12_MAX_DTR;
+		timing = SDHC_TIMING_SDR12;
+		break;
+	default:
+		/* No need to change bus speed */
+		return 0;
+	}
+
+	/* Switch bus speed */
+	ret = sdmmc_switch(card, SD_SWITCH_SET, SD_GRP_TIMING_MODE,
+		card->card_speed, status);
+	if (ret) {
+		LOG_DBG("Failed to switch SD card speed");
+		return ret;
+	}
+	if ((status[16] & 0xF) != card->card_speed) {
+		LOG_WRN("Card did not accept new speed");
+	} else {
+		/* Change host bus speed */
+		card->bus_io.timing = timing;
+		card->bus_io.clock = card->switch_caps.uhs_max_dtr;
+		LOG_DBG("Setting bus clock to: %d", card->bus_io.clock);
+		ret = sdhc_set_io(card->sdhc, &card->bus_io);
+		if (ret) {
+			LOG_ERR("Failed to change host bus speed");
+			return ret;
+		}
+	}
+	return 0;
+}
+
 /*
  * Init UHS capable SD card. Follows figure 3-16 in physical layer specification.
  */
@@ -769,6 +827,12 @@ static int sdmmc_init_uhs(struct sd_card *card)
 	ret = sdmmc_set_current_limit(card);
 	if (ret) {
 		LOG_DBG("Failed to set card current limit");
+		return ret;
+	}
+	/* Apply the bus speed selected earlier */
+	ret = sdmmc_set_bus_speed(card);
+	if (ret) {
+		LOG_DBG("Failed to set card bus speed");
 		return ret;
 	}
 
