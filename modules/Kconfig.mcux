@@ -346,7 +346,7 @@ config HAS_MCUX_CTIMER
 	  Set if the CTIMER module is present in the SoC.
 
 config HAS_MCUX_I2S
-	bool
+	bool "Enable SAI/I2S driver in nxp_hal"
 	help
 	  Set if the I2S/SAI module is present on the Soc
 
@@ -365,5 +365,57 @@ config HAS_MCUX_XBARA
 	bool
 	help
 	  Set if the XBARA module is present on the SoC.
+
+config HAS_MCUX_AUDIOMIX
+	bool
+	help
+	  Set if the AUDIOMIX module is present on the SoC.
+
+config HAS_MCUX_II2C
+	bool "Enable II2C driver in nxp_hal"
+	help
+	  Set if the II2C module is present on the Soc
+
+config COMPONENT_I2C
+	bool "Use Component I2C module"
+	help
+	  Set if the Component I2C module is used.
+
+config CODEC
+	bool "Use Codec common module"
+	help
+	  Set if the CODEC common module is used.
+
+config CODEC_I2C
+	bool "Use Codec I2C module"
+	depends on CODEC
+	help
+	  Set if the CODEC I2C module is used.
+
+config CODEC_PCM512X
+	bool "Use Codec PCM512x module"
+	select CODEC_I2C
+	depends on CODEC
+	help
+	  Set if the CODEC PCM512x module is used.
+
+config CODEC_PCM186X
+	bool "Use Codec PCM186x module"
+	select CODEC_I2C
+	depends on CODEC
+	help
+	  Set if the CODEC PCM186x module is used.
+
+config CODEC_WM8960
+	bool "Use Codec WM8960 module"
+	depends on CODEC
+	help
+	  Set if the CODEC WM8960 module is used.
+
+config CODEC_WM8524
+	bool "Use Codec WM8524 module"
+	depends on CODEC
+	help
+	  Set if the CODEC WM8524 module is used.
 
 endif # HAS_MCUX
