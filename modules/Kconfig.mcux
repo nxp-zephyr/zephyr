@@ -74,7 +74,7 @@ config HAS_MCUX_ENET
 	  Set if the ethernet (ENET) module is present in the SoC.
 
 config HAS_MCUX_FLEXCAN
-	bool
+	bool "Enable FlexCAN driver in nxp_hal"
 	help
 	  Set if the FlexCAN module is presents in the SoC.
 
@@ -112,7 +112,7 @@ config HAS_MCUX_IAP_LEGACY
 	  the older LPC family SoCs (LPC54xxx, LPC11xxx).
 
 config HAS_MCUX_IGPIO
-	bool
+	bool "Enable IGPIO driver in nxp_hal"
 	help
 	  Set if the iMX GPIO (IGPIO) module is present in the SoC.
 
