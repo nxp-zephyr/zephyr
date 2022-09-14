@@ -35,7 +35,11 @@ if(CONFIG_SOC_MIMX8ML8_A53 OR CONFIG_SOC_MIMX8MM6_A53 OR CONFIG_SOC_MIMX8MN6_A53
     a53/soc.c
   )
 
-  zephyr_sources_ifdef(CONFIG_ARM_MMU a53/mmu_regions.c)
+if(CONFIG_ARM_MMU)
+  zephyr_sources_ifdef(CONFIG_SOC_MIMX8ML8_A53 a53/mmu_regions_imx8mp.c)
+  zephyr_sources_ifdef(CONFIG_SOC_MIMX8MM6_A53 a53/mmu_regions_imx8mm.c)
+  zephyr_sources_ifdef(CONFIG_SOC_MIMX8MN6_A53 a53/mmu_regions_imx8mn.c)
+endif()
 
   set(SOC_LINKER_SCRIPT ${ZEPHYR_BASE}/include/zephyr/arch/arm64/scripts/linker.ld CACHE INTERNAL "")
 endif()
