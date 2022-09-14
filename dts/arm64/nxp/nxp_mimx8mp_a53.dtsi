@@ -67,6 +67,26 @@
 	};
 
 	soc {
+		gpio4: gpio@30230000 {
+			compatible = "nxp,imx-igpio";
+			reg = <0x30230000 DT_SIZE_K(64)>;
+		};
+
+		gpio5: gpio@30240000 {
+			compatible = "nxp,imx-igpio";
+			reg = <0x30240000 DT_SIZE_K(64)>;
+		};
+
+		iomuxc: iomuxc@30330000 {
+			compatible = "nxp,imx-iomuxc";
+			reg = <0x30330000 DT_SIZE_K(64)>;
+			status = "okay";
+			pinctrl: pinctrl {
+				status = "okay";
+				compatible = "nxp,imx8mp-pinctrl";
+			};
+		};
+
 		ana_pll: ana_pll@30360000 {
 			compatible = "nxp,imx-ana";
 			reg = <0x30360000 DT_SIZE_K(64)>;
@@ -100,6 +120,16 @@
 			status = "disabled";
 		};
 
+		gpc: gpc@303a0000 {
+			compatible = "nxp,imx-gpc";
+			reg = <0x303a0000 DT_SIZE_K(64)>;
+		};
+
+		flexcan: flexcan@308c0000 {
+			compatible = "nxp,imx-flexcan";
+			reg = <0x308c0000 DT_SIZE_K(64)>;
+		};
+
 		uart2: uart@30890000 {
 			compatible = "nxp,imx-iuart";
 			reg = <0x30890000 DT_SIZE_K(64)>;
@@ -109,6 +139,12 @@
 			clocks = <&ccm IMX_CCM_UART2_CLK 0x6c 24>;
 			rdc = <(RDC_DOMAIN_PERM(A53_DOMAIN_ID, RDC_DOMAIN_PERM_RW)|\
 			       RDC_DOMAIN_PERM(M7_DOMAIN_ID, RDC_DOMAIN_PERM_RW))>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@30a40000 {
+			compatible = "nxp,imx-i2c";
+			reg = <0x30a40000 DT_SIZE_K(64)>;
 			status = "disabled";
 		};
 
@@ -155,14 +191,46 @@
 			};
 		};
 
-		iomuxc: iomuxc@30330000 {
-			compatible = "nxp,imx-iomuxc";
-			reg = <0x30330000 DT_SIZE_K(64)>;
-			status = "okay";
-			pinctrl: pinctrl {
-				status = "okay";
-				compatible = "nxp,imx8mp-pinctrl";
-			};
+		sai1: sai@30c10000 {
+			compatible = "nxp,imx-sai";
+			reg = <0x30c10000 DT_SIZE_K(64)>;
+			status = "disabled";
+		};
+
+		sai2: sai@30c20000 {
+			compatible = "nxp,imx-sai";
+			reg = <0x30c20000 DT_SIZE_K(64)>;
+			status = "disabled";
+		};
+
+		sai3: sai@30c30000 {
+			compatible = "nxp,imx-sai";
+			reg = <0x30c30000 DT_SIZE_K(64)>;
+			status = "disabled";
+		};
+
+		sai5: sai@30c50000 {
+			compatible = "nxp,imx-sai";
+			reg = <0x30c50000 DT_SIZE_K(64)>;
+			status = "disabled";
+		};
+
+		sai6: sai@30c60000 {
+			compatible = "nxp,imx-sai";
+			reg = <0x30c60000 DT_SIZE_K(64)>;
+			status = "disabled";
+		};
+
+		sai7: sai@30c80000 {
+			compatible = "nxp,imx-sai";
+			reg = <0x30c80000 DT_SIZE_K(64)>;
+			status = "disabled";
+		};
+
+		audio_blk_ctrl: audio-blk-ctrl@30e20000 {
+			compatible = "nxp,imx-audio-blk-ctrl";
+			reg = <0x30e20000 DT_SIZE_K(64)>;
+			status = "disabled";
 		};
 
 		rdc: rdc@303d0000 {
