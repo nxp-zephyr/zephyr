@@ -94,6 +94,36 @@
 		status = "disabled";
 	};
 
+	sai2: sai@30020000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30020000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai3: sai@30030000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30030000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai5: sai@30050000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30050000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai6: sai@30060000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30060000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai7: sai@300b0000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x300b0000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
 	iomuxc: iomuxc@30330000 {
 		compatible = "nxp,imx-iomuxc";
 		reg = <0x30330000 DT_SIZE_K(64)>;
@@ -124,6 +154,12 @@
 		clocks = <&ccm IMX_CCM_UART2_CLK 0x6c 24>;
 		rdc = <(RDC_DOMAIN_PERM(A53_DOMAIN_ID, RDC_DOMAIN_PERM_RW)|\
 		       RDC_DOMAIN_PERM(M7_DOMAIN_ID, RDC_DOMAIN_PERM_RW))>;
+		status = "disabled";
+	};
+
+	i2c3: i2c@30a40000 {
+		compatible = "nxp,imx-i2c";
+		reg = <0x30a40000 DT_SIZE_K(64)>;
 		status = "disabled";
 	};
 
