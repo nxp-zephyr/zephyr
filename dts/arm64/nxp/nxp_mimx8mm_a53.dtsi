@@ -72,6 +72,58 @@
 		status = "okay";
 	};
 
+	sai1: sai@30010000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30010000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai2: sai@30020000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30020000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai3: sai@30030000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30030000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai5: sai@30050000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30050000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai6: sai@30060000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x30060000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	gpt1: gpt@302d0000 {
+		compatible = "nxp,imx-gpt";
+		reg = <0x302d0000 DT_SIZE_K(64)>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL
+			IRQ_DEFAULT_PRIORITY>;
+		gptfreq = <24000000>;
+		clocks = <&ccm IMX_CCM_GPT_IPG_CLK 0x6C 20>;
+		status = "disabled";
+	};
+
+	gpt2: gpt@302e0000 {
+		compatible = "nxp,imx-gpt";
+		reg = <0x302e0000 DT_SIZE_K(64)>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL
+			IRQ_DEFAULT_PRIORITY>;
+		gptfreq = <24000000>;
+		clocks = <&ccm IMX_CCM_GPT_IPG_CLK 0x68 24>;
+		status = "disabled";
+	};
+
 	iomuxc: iomuxc@30330000 {
 		compatible = "nxp,imx-iomuxc";
 		reg = <0x30330000 DT_SIZE_K(64)>;
@@ -100,6 +152,12 @@
 		interrupt-names = "irq_0";
 		interrupt-parent = <&gic>;
 		clocks = <&ccm IMX_CCM_UART2_CLK 0x6c 24>;
+		status = "disabled";
+	};
+
+	i2c3: i2c@30a40000 {
+		compatible = "nxp,imx-i2c";
+		reg = <0x30a40000 DT_SIZE_K(64)>;
 		status = "disabled";
 	};
 
