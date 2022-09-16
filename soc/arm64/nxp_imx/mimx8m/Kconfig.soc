@@ -14,6 +14,7 @@ config SOC_MIMX8MM_A53
 	select HAS_MCUX if CLOCK_CONTROL
 	select HAS_MCUX_CCM if CLOCK_CONTROL
 	select HAS_MCUX_IOMUXC if PINCTRL
+	select HAS_MCUX_I2S if I2S
 
 config SOC_MIMX8MP_A53
 	bool "NXP i.MX8MP A53"
@@ -24,6 +25,8 @@ config SOC_MIMX8MP_A53
 	select HAS_MCUX if CLOCK_CONTROL
 	select HAS_MCUX_CCM if CLOCK_CONTROL
 	select HAS_MCUX_IOMUXC if PINCTRL
+	select HAS_MCUX_I2S if I2S
+	select HAS_MCUX_AUDIOMIX if I2S
 
 config SOC_MIMX8MN_A53
 	bool "NXP i.MX8MN A53"
@@ -34,6 +37,7 @@ config SOC_MIMX8MN_A53
 	select HAS_MCUX if CLOCK_CONTROL
 	select HAS_MCUX_CCM if CLOCK_CONTROL
 	select HAS_MCUX_IOMUXC if PINCTRL
+	select HAS_MCUX_I2S if I2S
 
 endchoice
 
