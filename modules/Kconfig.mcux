@@ -69,7 +69,7 @@ config HAS_MCUX_MIPI_DSI
 	  Set if the MIPI DSI module is present in the SoC.
 
 config HAS_MCUX_ENET
-	bool
+	bool "Enable ENET driver in nxp_hal"
 	help
 	  Set if the ethernet (ENET) module is present in the SoC.
 
@@ -423,14 +423,24 @@ config CODEC_WM8524
 	help
 	  Set if the CODEC WM8524 module is used.
 
-config MDIO_ENET_QOS
-	bool "Use MDIO Enet QoS module"
+config MDIO_ENET
+	bool "Use MDIO ENET module"
 	help
-	  Set if the Enet QoS MDIO module is used.
+	  Set if the ENET MDIO module is used.
+
+config MDIO_ENET_QOS
+	bool "Use MDIO ENET QoS module"
+	help
+	  Set if the ENET QoS MDIO module is used.
 
 config PHY_RTL8211F
-	bool "Use RTL8211F PHY driver in mcux"
+	bool "Enable RTL8211F PHY driver in hal_nxp"
 	help
 	  Set if the RTL8211F PHY driver is used.
+
+config PHY_AR8031
+	bool "Enable AR8031 PHY driver in hal_nxp"
+	help
+	  Set if the AR8031 PHY driver is used.
 
 endif # HAS_MCUX
