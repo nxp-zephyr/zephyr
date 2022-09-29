@@ -87,6 +87,11 @@
 			};
 		};
 
+		iomuxc_gpr: iomuxc_gpr@30340000 {
+			compatible = "nxp,imx-iomuxc-gpr";
+			reg = <0x30340000 DT_SIZE_K(64)>;
+		};
+
 		ana_pll: ana_pll@30360000 {
 			compatible = "nxp,imx-ana";
 			reg = <0x30360000 DT_SIZE_K(64)>;
@@ -161,10 +166,8 @@
 		};
 
 		enet: enet@30be0000 {
-			compatible = "nxp,enet1g";
+			compatible = "nxp,imx-enet";
 			reg = <0x30be0000 DT_SIZE_K(64)>;
-			clocks = <&ccm IMX_CCM_ENET_CLK 0 0>;
-			rdc = <RDC_DOMAIN_PERM(A53_DOMAIN_ID, RDC_DOMAIN_PERM_RW)>;
 			status = "disabled";
 
 			enet_mac: ethernet {
@@ -189,6 +192,12 @@
 				clocks = <&ccm IMX_CCM_ENET_PLL 0 0>;
 				status = "disabled";
 			};
+		};
+
+		enet_qos: enet@30bf0000 {
+			compatible = "nxp,imx-enet-qos";
+			reg = <0x30bf0000 DT_SIZE_K(64)>;
+			status = "disabled";
 		};
 
 		sai1: sai@30c10000 {
