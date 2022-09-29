@@ -388,7 +388,7 @@ config NXP_RF_IMU
 	   RF_IMU adapter is needed for intercore messaging.
 
 config HAS_MCUX_AUDIOMIX
-	bool
+	bool "Enable AUDIOMIX module"
 	help
 	  Set if the AUDIOMIX module is present on the SoC.
 
