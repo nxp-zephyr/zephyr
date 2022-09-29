@@ -367,7 +367,7 @@ config HAS_MCUX_XBARA
 	  Set if the XBARA module is present on the SoC.
 
 config HAS_MCUX_AUDIOMIX
-	bool
+	bool "Enable AUDIOMIX module"
 	help
 	  Set if the AUDIOMIX module is present on the SoC.
 
