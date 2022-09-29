@@ -73,6 +73,11 @@ config HAS_MCUX_ENET
 	help
 	  Set if the ethernet (ENET) module is present in the SoC.
 
+config HAS_MCUX_ENET_QOS
+	bool "Enable ENET_QoS driver in nxp_hal"
+	help
+	  Set if the ethernet (ENET_QOS) module is present in the SoC.
+
 config HAS_MCUX_FLEXCAN
 	bool
 	help
@@ -142,7 +147,7 @@ config HAS_MCUX_LPUART
 	  Set if the low power uart (LPUART) module is present in the SoC.
 
 config HAS_MCUX_GPT
-	bool
+	bool "Enable MCUX GPT driver in nxp_hal"
 	help
 	  Set if the general purpose timer (GPT) module is present in the SoC.
 
@@ -365,5 +370,15 @@ config HAS_MCUX_XBARA
 	bool
 	help
 	  Set if the XBARA module is present on the SoC.
+
+config MDIO_ENET_QOS
+	bool "Use MDIO Enet QoS module"
+	help
+	  Set if the Enet QoS MDIO module is used.
+
+config PHY_RTL8211F
+	bool "Use RTL8211F PHY driver in mcux"
+	help
+	  Set if the RTL8211F PHY driver is used.
 
 endif # HAS_MCUX
