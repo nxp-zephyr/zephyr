@@ -70,6 +70,13 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_INST(4, nxp_imx_sai)),
 			      MT_DEVICE_nGnRE | MT_P_RW_U_RW | MT_NS),
 
+#ifdef CONFIG_HAS_MCUX_ENET
+	MMU_REGION_FLAT_ENTRY("ENET",
+			      DT_REG_ADDR(DT_INST(0, nxp_imx_enet)),
+			      DT_REG_SIZE(DT_INST(0, nxp_imx_enet)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_RW | MT_NS),
+#endif
+
 	MMU_REGION_DT_COMPAT_FOREACH_FLAT_ENTRY(nxp_imx_iuart,
 				  (MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS))
 };
