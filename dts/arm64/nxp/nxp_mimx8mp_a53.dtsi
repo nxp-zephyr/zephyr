@@ -108,6 +108,11 @@
 			};
 		};
 
+		iomuxc_gpr: iomuxc_gpr@30340000 {
+			compatible = "nxp,imx-iomuxc-gpr";
+			reg = <0x30340000 DT_SIZE_K(64)>;
+		};
+
 		ana_pll: ana_pll@30360000 {
 			compatible = "nxp,imx-ana";
 			reg = <0x30360000 DT_SIZE_K(64)>;
@@ -152,6 +157,18 @@
 			interrupt-names = "irq_0";
 			interrupt-parent = <&gic>;
 			clocks = <&ccm IMX_CCM_UART4_CLK 0x6c 24>;
+			status = "disabled";
+		};
+
+		enet: enet@30be0000 {
+			compatible = "nxp,imx-enet";
+			reg = <0x30be0000 DT_SIZE_K(64)>;
+			status = "disabled";
+		};
+
+		enet_qos: enet@30bf0000 {
+			compatible = "nxp,imx-enet-qos";
+			reg = <0x30bf0000 DT_SIZE_K(64)>;
 			status = "disabled";
 		};
 
