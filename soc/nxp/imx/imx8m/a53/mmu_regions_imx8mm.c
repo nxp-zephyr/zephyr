@@ -40,6 +40,36 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_NODELABEL(rdc)),
 			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
 
+	MMU_REGION_FLAT_ENTRY("I2C3",
+			      DT_REG_ADDR(DT_INST(0, nxp_imx_i2c)),
+			      DT_REG_SIZE(DT_INST(0, nxp_imx_i2c)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+
+	MMU_REGION_FLAT_ENTRY("SAI1",
+			      DT_REG_ADDR(DT_INST(0, nxp_imx_sai)),
+			      DT_REG_SIZE(DT_INST(0, nxp_imx_sai)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+
+	MMU_REGION_FLAT_ENTRY("SAI2",
+			      DT_REG_ADDR(DT_INST(1, nxp_imx_sai)),
+			      DT_REG_SIZE(DT_INST(1, nxp_imx_sai)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+
+	MMU_REGION_FLAT_ENTRY("SAI3",
+			      DT_REG_ADDR(DT_INST(2, nxp_imx_sai)),
+			      DT_REG_SIZE(DT_INST(2, nxp_imx_sai)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+
+	MMU_REGION_FLAT_ENTRY("SAI5",
+			      DT_REG_ADDR(DT_INST(3, nxp_imx_sai)),
+			      DT_REG_SIZE(DT_INST(3, nxp_imx_sai)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+
+	MMU_REGION_FLAT_ENTRY("SAI6",
+			      DT_REG_ADDR(DT_INST(4, nxp_imx_sai)),
+			      DT_REG_SIZE(DT_INST(4, nxp_imx_sai)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+
 	MMU_REGION_DT_COMPAT_FOREACH_FLAT_ENTRY(nxp_imx_iuart,
 				  (MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS))
 };
