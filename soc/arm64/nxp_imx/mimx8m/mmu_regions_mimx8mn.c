@@ -86,6 +86,13 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_ADDR(DT_INST(4, nxp_imx_sai)),
 			      DT_REG_SIZE(DT_INST(4, nxp_imx_sai)),
 			      MT_DEVICE_nGnRE | MT_P_RW_U_RW | MT_NS),
+
+#ifdef CONFIG_HAS_MCUX_ENET
+	MMU_REGION_FLAT_ENTRY("ENET",
+			      DT_REG_ADDR(DT_INST(0, nxp_imx_enet)),
+			      DT_REG_SIZE(DT_INST(0, nxp_imx_enet)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_RW | MT_NS),
+#endif
 };
 
 const struct arm_mmu_config mmu_config = {
