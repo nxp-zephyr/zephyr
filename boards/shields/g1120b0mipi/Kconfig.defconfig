@@ -37,6 +37,10 @@ choice LV_COLOR_DEPTH
 	default LV_COLOR_DEPTH_16
 endchoice
 
+# Align to 16 pixel boundary for VGLite
+config LV_ATTRIBUTE_MEM_ALIGN_SIZE
+	default 64 if VGLITE
+
 endif # LVGL
 
 endif # SHIELD_G1120B0MIPI
