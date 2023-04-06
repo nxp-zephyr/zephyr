@@ -474,3 +474,8 @@ zephyr_udc0: &usbhs {
 	dmas = <&smartdma>;
 	dma-names = "smartdma";
 };
+
+/* Enable GPU */
+&gpu {
+	status = "okay";
+};

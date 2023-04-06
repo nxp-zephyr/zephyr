@@ -374,6 +374,20 @@ static void clock_init(void)
 	CLOCK_EnableClock(kCLOCK_Smartdma);
 #endif
 
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(gpu), okay) && CONFIG_VGLITE
+	/* Turn on GPU power and clocks */
+	SYSCTL0->PDRUNCFG1_CLR = SYSCTL0_PDRUNCFG1_GPU_SRAM_APD_MASK;
+	SYSCTL0->PDRUNCFG1_CLR = SYSCTL0_PDRUNCFG1_GPU_SRAM_PPD_MASK;
+	POWER_ApplyPD();
+	CLOCK_AttachClk(kMAIN_CLK_to_GPU_CLK);
+	CLOCK_SetClkDiv(kCLOCK_DivGpuClk, 2);
+	CLOCK_EnableClock(kCLOCK_Gpu);
+	CLOCK_EnableClock(kCLOCK_AxiSwitch);
+
+	RESET_ClearPeripheralReset(kGPU_RST_SHIFT_RSTn);
+	RESET_ClearPeripheralReset(kAXI_SWITCH_RST_SHIFT_RSTn);
+#endif
+
 	DT_FOREACH_STATUS_OKAY(nxp_lpc_ctimer, CTIMER_CLOCK_SETUP)
 
 	/* Set up dividers. */

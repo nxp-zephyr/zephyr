@@ -554,6 +554,13 @@
 		#address-cells = <3>;
 		#size-cells = <0>;
 	};
+
+	gpu: gcnanolite@240000 {
+		compatible = "nxp,vglite";
+		reg = <0x240000 0x1000>;
+		interrupts = <70 0>;
+		status = "disabled";
+	};
 };
 
 &flexspi {
