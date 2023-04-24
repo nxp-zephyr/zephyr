@@ -186,7 +186,8 @@ static int ft5336_init(const struct device *dev)
 	}
 
 	r = gpio_pin_interrupt_configure_dt(&config->int_gpio,
-					    GPIO_INT_EDGE_TO_ACTIVE);
+					    GPIO_INT_EDGE_TO_ACTIVE |
+					    GPIO_INT_WAKEUP);
 	if (r < 0) {
 		LOG_ERR("Could not configure interrupt GPIO interrupt.");
 		return r;
