@@ -26,6 +26,7 @@
 #endif
 #include <fsl_gpio.h>
 #include <fsl_device_registers.h>
+#include <fsl_power.h>
 
 /* Interrupt sources, matching int-source enum in DTS binding definition */
 #define INT_SOURCE_PINT 0
@@ -45,6 +46,7 @@ struct gpio_mcux_lpc_config {
 #endif
 	uint32_t port_no;
 	clock_ip_name_t clock_ip_name;
+	uint32_t isr;
 };
 
 struct gpio_mcux_lpc_data {
@@ -233,18 +235,18 @@ static int gpio_mcux_lpc_pint_interrupt_cfg(const struct device *dev,
 		nxp_pint_pin_disable((port * 32) + pin);
 		return 0;
 	case GPIO_INT_MODE_LEVEL:
-		if (trig == GPIO_INT_TRIG_HIGH) {
+		if (trig | GPIO_INT_TRIG_HIGH) {
 			interrupt_mode = NXP_PINT_HIGH;
-		} else if (trig == GPIO_INT_TRIG_LOW) {
+		} else if (trig | GPIO_INT_TRIG_LOW) {
 			interrupt_mode = NXP_PINT_LOW;
 		} else {
 			return -ENOTSUP;
 		}
 		break;
 	case GPIO_INT_MODE_EDGE:
-		if (trig == GPIO_INT_TRIG_HIGH) {
+		if (trig | GPIO_INT_TRIG_HIGH) {
 			interrupt_mode = NXP_PINT_RISING;
-		} else if (trig == GPIO_INT_TRIG_LOW) {
+		} else if (trig | GPIO_INT_TRIG_LOW) {
 			interrupt_mode = NXP_PINT_FALLING;
 		} else {
 			interrupt_mode = NXP_PINT_BOTH;
@@ -254,11 +256,16 @@ static int gpio_mcux_lpc_pint_interrupt_cfg(const struct device *dev,
 		return -ENOTSUP;
 	}
 
+	if (trig & GPIO_INT_WAKEUP) {
+		interrupt_mode |= NXP_PINT_WAKEUP;
+	}
+
 	/* PINT treats GPIO pins as continuous. Each port has 32 pins */
 	ret = nxp_pint_pin_enable((port * 32) + pin, interrupt_mode);
 	if (ret < 0) {
 		return ret;
 	}
+
 	/* Install callback */
 	return nxp_pint_pin_set_callback((port * 32) + pin,
 					  gpio_mcux_lpc_pint_cb,
@@ -302,12 +309,18 @@ static int gpio_mcux_lpc_module_interrupt_cfg(const struct device *dev,
 	}
 
 	/* Set pin interrupt trigger */
-	if (trig == GPIO_INT_TRIG_HIGH) {
+	if (trig & GPIO_INT_TRIG_HIGH) {
 		pin_config.polarity = kGPIO_PinIntEnableHighOrRise;
-	} else if (trig == GPIO_INT_TRIG_LOW) {
+	} else if (trig & GPIO_INT_TRIG_LOW) {
 		pin_config.polarity = kGPIO_PinIntEnableLowOrFall;
 	} else {
 		return -ENOTSUP;
+	}
+
+	if (trig | GPIO_INT_WAKEUP) {
+		EnableDeepSleepIRQ(config->isr);
+	} else {
+		DisableDeepSleepIRQ(config->isr);
 	}
 
 	/* Enable interrupt with new configuration */
@@ -425,6 +438,8 @@ static const clock_ip_name_t gpio_clock_names[] = GPIO_CLOCKS;
 		.int_source = DT_INST_ENUM_IDX(n, int_source),				\
 		.port_no = DT_INST_PROP(n, port),					\
 		.clock_ip_name = gpio_clock_names[DT_INST_PROP(n, port)],		\
+		IF_ENABLED(DT_INST_IRQ_HAS_IDX(n, 0),					\
+			(.isr = DT_INST_IRQ(n, irq),))					\
 	};										\
 											\
 	static struct gpio_mcux_lpc_data gpio_mcux_lpc_data_##n;			\
