@@ -27,6 +27,7 @@
 #include <fsl_gpio.h>
 #include <fsl_device_registers.h>
 #include <fsl_power.h>
+#include <zephyr/pm/device.h>
 
 /* Interrupt sources, matching int-source enum in DTS binding definition */
 #define INT_SOURCE_PINT 0
@@ -49,11 +50,25 @@ struct gpio_mcux_lpc_config {
 	uint32_t isr;
 };
 
+#ifdef CONFIG_PM_DEVICE
+/* Structure used to track gpio pin interrupt settings,
+ * as the pins must be reconfigured during sleep
+ */
+struct gpio_int_cfg {
+	enum gpio_int_mode int_mode;
+	enum gpio_int_trig trig_mode;
+};
+#endif
+
 struct gpio_mcux_lpc_data {
 	/* gpio_driver_data needs to be first */
 	struct gpio_driver_data common;
 	/* port ISR callback routine address */
 	sys_slist_t callbacks;
+#ifdef CONFIG_PM_DEVICE
+	/* pin interrupt settings */
+	struct gpio_int_cfg int_cfg[32];
+#endif
 };
 
 static int gpio_mcux_lpc_configure(const struct device *dev, gpio_pin_t pin,
@@ -350,6 +365,82 @@ void gpio_mcux_lpc_module_isr(const struct device *dev)
 
 #endif /* FSL_FEATURE_GPIO_HAS_INTERRUPT */
 
+#ifdef CONFIG_PM_DEVICE
+static int gpio_mcux_lpc_pm_action(const struct device *dev,
+			       enum pm_device_action action)
+{
+	const struct gpio_mcux_lpc_config *config = dev->config;
+	struct gpio_mcux_lpc_data *data = dev->data;
+	GPIO_Type *gpio_base = config->gpio_base;
+	uint8_t pin;
+
+	switch (action) {
+	case PM_DEVICE_ACTION_RESUME:
+		/* If using module interrupts, restore pin interrupt config */
+		if ((config->int_source != INT_SOURCE_PINT) &&
+		    (config->int_source != INT_SOURCE_NONE)) {
+			for (pin = 0; pin < ARRAY_SIZE(data->int_cfg); pin++) {
+				if ((data->int_cfg[pin].int_mode != GPIO_INT_MODE_DISABLED) &&
+				    (!(data->int_cfg[pin].trig_mode & GPIO_INT_WAKEUP))) {
+					/* Reenable GPIO interrupt */
+					if (config->int_source == INT_SOURCE_INTA) {
+						GPIO_PinEnableInterrupt(gpio_base,
+									config->port_no,
+									pin,
+									kGPIO_InterruptA);
+					} else {
+						GPIO_PinEnableInterrupt(gpio_base,
+									config->port_no,
+									pin,
+									kGPIO_InterruptB);
+					}
+				} else if (data->int_cfg[pin].int_mode == GPIO_INT_MODE_EDGE) {
+					/* Restore pin interrupt setting */
+					gpio_base->INTEDG[config->port_no] |= BIT(pin);
+				}
+			}
+		}
+		break;
+	case PM_DEVICE_ACTION_SUSPEND:
+		/* GPIO module only supports waking from sleep using level
+		 * interrupts. To support this, we check the interrupt config of
+		 * all GPIO pins when entering sleep, and switch edge
+		 * triggered pins to level trigger mode. The GPIO ISR
+		 * will reconfigure the pin to an edge interrupt if it wakes
+		 * the SOC, or it will be reconfigured in the RESUME case
+		 * above.
+		 */
+		if ((config->int_source != INT_SOURCE_PINT) &&
+		    (config->int_source != INT_SOURCE_NONE)) {
+			for (pin = 0; pin < ARRAY_SIZE(data->int_cfg); pin++) {
+				if ((data->int_cfg[pin].int_mode != GPIO_INT_MODE_DISABLED) &&
+				    (!(data->int_cfg[pin].trig_mode & GPIO_INT_WAKEUP))) {
+					/* Disable this GPIO interrupt until we wake from sleep */
+					if (config->int_source == INT_SOURCE_INTA) {
+						GPIO_PinDisableInterrupt(gpio_base,
+									config->port_no,
+									pin,
+									kGPIO_InterruptA);
+					} else {
+						GPIO_PinDisableInterrupt(gpio_base,
+									config->port_no,
+									pin,
+									kGPIO_InterruptB);
+					}
+				} else if (data->int_cfg[pin].int_mode == GPIO_INT_MODE_EDGE) {
+					/* Reconfigure pin to use level mode */
+					gpio_base->INTEDG[config->port_no] &= ~BIT(pin);
+				}
+			}
+		}
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_PM_DEVICE */
 
 static int gpio_mcux_lpc_pin_interrupt_configure(const struct device *dev,
 						 gpio_pin_t pin,
@@ -359,6 +450,7 @@ static int gpio_mcux_lpc_pin_interrupt_configure(const struct device *dev,
 	const struct gpio_mcux_lpc_config *config = dev->config;
 	GPIO_Type *gpio_base = config->gpio_base;
 	uint32_t port = config->port_no;
+	int ret;
 
 	/* Ensure pin used as interrupt is set as input*/
 	if ((mode & GPIO_INT_ENABLE) &&
@@ -367,14 +459,26 @@ static int gpio_mcux_lpc_pin_interrupt_configure(const struct device *dev,
 	}
 #if defined(CONFIG_NXP_PINT)
 	if (config->int_source == INT_SOURCE_PINT) {
-		return gpio_mcux_lpc_pint_interrupt_cfg(dev, pin, mode, trig);
+		ret = gpio_mcux_lpc_pint_interrupt_cfg(dev, pin, mode, trig);
 	}
 #endif /* CONFIG_NXP_PINT */
 #if (defined(FSL_FEATURE_GPIO_HAS_INTERRUPT) && FSL_FEATURE_GPIO_HAS_INTERRUPT)
-	return gpio_mcux_lpc_module_interrupt_cfg(dev, pin, mode, trig);
+	ret = gpio_mcux_lpc_module_interrupt_cfg(dev, pin, mode, trig);
 #else
-	return -ENOTSUP;
+	ret = -ENOTSUP;
 #endif
+	if (ret < 0) {
+		return ret;
+	}
+#ifdef CONFIG_PM_DEVICE
+	struct gpio_mcux_lpc_data *data = dev->data;
+
+	/* Record the interrupt setting for this pin in software */
+	data->int_cfg[pin].int_mode = mode;
+	data->int_cfg[pin].trig_mode = trig;
+#endif
+
+	return ret;
 }
 
 static int gpio_mcux_lpc_manage_cb(const struct device *port,
@@ -390,6 +494,14 @@ static int gpio_mcux_lpc_init(const struct device *dev)
 	const struct gpio_mcux_lpc_config *config = dev->config;
 
 	GPIO_PortInit(config->gpio_base, config->port_no);
+
+#ifdef CONFIG_PM_DEVICE
+	struct gpio_mcux_lpc_data *data = dev->data;
+
+	for (int i = 0; i < ARRAY_SIZE(data->int_cfg); i++) {
+		data->int_cfg[i].int_mode = GPIO_INT_MODE_DISABLED;
+	}
+#endif
 
 	return 0;
 }
@@ -444,7 +556,10 @@ static const clock_ip_name_t gpio_clock_names[] = GPIO_CLOCKS;
 											\
 	static struct gpio_mcux_lpc_data gpio_mcux_lpc_data_##n;			\
 											\
-	DEVICE_DT_INST_DEFINE(n, lpc_gpio_init_##n, NULL,				\
+	PM_DEVICE_DT_INST_DEFINE(n, gpio_mcux_lpc_pm_action);				\
+											\
+	DEVICE_DT_INST_DEFINE(n, lpc_gpio_init_##n,					\
+		    PM_DEVICE_DT_INST_GET(n),						\
 		    &gpio_mcux_lpc_data_##n,						\
 		    &gpio_mcux_lpc_config_##n, PRE_KERNEL_1,				\
 		    CONFIG_GPIO_INIT_PRIORITY,						\
