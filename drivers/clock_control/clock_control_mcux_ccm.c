@@ -44,6 +44,17 @@ static const clock_root_t lpuart_clk_root[] = {
 };
 #endif
 
+#if defined(CONFIG_COUNTER_MCUX_TPM) && defined(CONFIG_SOC_MIMX93_A55)
+static const clock_root_t tpm_clk_root[] = {
+	kCLOCK_Root_Tpm1,
+	kCLOCK_Root_Tpm2,
+	kCLOCK_Root_Tpm3,
+	kCLOCK_Root_Tpm4,
+	kCLOCK_Root_Tpm5,
+	kCLOCK_Root_Tpm6,
+};
+#endif
+
 static int mcux_ccm_on(const struct device *dev,
 			      clock_control_subsys_t sub_system)
 {
@@ -208,6 +219,24 @@ static int mcux_ccm_get_subsys_rate(const struct device *dev,
 			*rate = OSC24M_CLK_FREQ;
 		else
 			*rate = 0;
+	} break;
+#endif
+
+#if defined(CONFIG_COUNTER_MCUX_TPM) && defined(CONFIG_SOC_MIMX93_A55)
+	case IMX_CCM_TPM2_CLK:
+	case IMX_CCM_TPM4_CLK:
+	case IMX_CCM_TPM5_CLK:
+	case IMX_CCM_TPM6_CLK:
+	{
+		uint32_t instance = clock_name & IMX_CCM_INSTANCE_MASK;
+		clock_root_t clk_root = tpm_clk_root[instance];
+		uint32_t tpm_mux = CLOCK_GetRootClockMux(clk_root);
+		uint32_t divider = CLOCK_GetRootClockDiv(clk_root);
+
+		if (tpm_mux == 0)
+			*rate = MHZ(24) / divider;
+		else
+			LOG_ERR("TPM Clock is not supported\r\n");
 	} break;
 #endif
 
