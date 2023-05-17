@@ -39,6 +39,19 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_ADDR(DT_NODELABEL(iomuxc)),
 			      DT_REG_SIZE(DT_NODELABEL(iomuxc)),
 			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+
+#ifdef CONFIG_COUNTER_MCUX_TPM
+	MMU_REGION_FLAT_ENTRY("TPM2",
+			      DT_REG_ADDR(DT_INST(0, nxp_tpm_timer)),
+			      DT_REG_SIZE(DT_INST(0, nxp_tpm_timer)),
+			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+
+	MMU_REGION_FLAT_ENTRY("TPM4",
+			      DT_REG_ADDR(DT_INST(1, nxp_tpm_timer)),
+			      DT_REG_SIZE(DT_INST(1, nxp_tpm_timer)),
+			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+#endif
+
 };
 
 const struct arm_mmu_config mmu_config = {
