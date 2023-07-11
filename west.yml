@@ -21,6 +21,8 @@ manifest:
   remotes:
     - name: upstream
       url-base: https://github.com/zephyrproject-rtos
+    - name: nxp
+      url-base: https://github.com/nxp-zephyr/hal_nxp.git
 
   #
   # Please add items below based on alphabetical order
@@ -93,7 +95,8 @@ manifest:
       groups:
         - hal
     - name: hal_nxp
-      revision: d957472002a3758154f402e982d95ce90cf58e12
+      remote: nxp
+      revision: 45ac8c57f22cd612a288a0416683efb251afad9e
       path: modules/hal/nxp
       groups:
         - hal
