@@ -38,7 +38,9 @@ enum nxp_pint_trigger {
 	/* Generate Pin Interrupt on low level */
 	NXP_PINT_LOW  = kPINT_PinIntEnableLowLevel,
 	/* Generate Pin Interrupt on high level */
-	NXP_PINT_HIGH = kPINT_PinIntEnableHighLevel
+	NXP_PINT_HIGH = kPINT_PinIntEnableHighLevel,
+	/* Enable wakeup from PINT interrupt */
+	NXP_PINT_WAKEUP = BIT(7),
 };
 
 /* Callback for NXP PINT interrupt */

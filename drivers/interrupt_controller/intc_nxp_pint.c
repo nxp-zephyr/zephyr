@@ -12,6 +12,7 @@
 #include <zephyr/drivers/interrupt_controller/nxp_pint.h>
 
 #include <fsl_inputmux.h>
+#include <fsl_power.h>
 
 #define DT_DRV_COMPAT nxp_pint
 
@@ -25,6 +26,7 @@ struct pint_irq_slot {
 	void *user_data;
 	uint8_t pin: 6;
 	uint8_t used: 1;
+	uint8_t irq;
 };
 
 #define NO_PINT_ID 0xFF
@@ -93,6 +95,12 @@ int nxp_pint_pin_enable(uint8_t pin, enum nxp_pint_trigger trigger)
 	 * driver handles the IRQ
 	 */
 	PINT_PinInterruptConfig(pint_base, slot, trigger, NULL);
+	if (trigger & NXP_PINT_WAKEUP) {
+		EnableDeepSleepIRQ(pint_irq_cfg[slot].irq);
+	} else {
+		DisableDeepSleepIRQ(pint_irq_cfg[slot].irq);
+	}
+
 	return 0;
 }
 
@@ -186,6 +194,7 @@ static void nxp_pint_isr(uint8_t *slot)
 			    DT_IRQ_BY_IDX(node_id, idx, priority),		\
 			    nxp_pint_isr, &nxp_pint_idx_##idx, 0);		\
 		irq_enable(DT_IRQ_BY_IDX(node_id, idx, irq));			\
+		pint_irq_cfg[idx].irq = DT_IRQ_BY_IDX(node_id, idx, irq);	\
 	} while (false)))
 
 static int intc_nxp_pint_init(void)
