@@ -378,6 +378,17 @@
 		};
 	};
 
+	enet_qos: enet@428a0000 {
+		compatible = "nxp,imx-enet-qos";
+		reg = <0x428a0000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	flexcan: flexcan@425b0000 {
+		compatible = "nxp,imx-flexcan";
+		reg = <0x425b0000 DT_SIZE_K(64)>;
+	};
+
 	tpm1: tpm@44310000 {
 		compatible = "nxp,tpm-timer";
 		reg = <0x44310000 DT_SIZE_K(64)>;

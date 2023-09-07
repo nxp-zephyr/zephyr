@@ -50,6 +50,24 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_NODELABEL(host_ram)),
 			      MT_NORMAL | MT_P_RW_U_NA | MT_NS),
 #endif /* CONFIG_SOF */
+
+#ifdef CONFIG_HAS_MCUX_FLEXCAN
+	MMU_REGION_FLAT_ENTRY("FLEXCAN", DT_REG_ADDR(DT_INST(0, nxp_imx_flexcan)),
+			      DT_REG_SIZE(DT_INST(0, nxp_imx_flexcan)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+#endif
+
+#ifdef CONFIG_HAS_MCUX_ENET
+	MMU_REGION_FLAT_ENTRY("ENET", DT_REG_ADDR(DT_INST(0, nxp_enet1g)),
+			      DT_REG_SIZE(DT_INST(0, nxp_enet1g)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_RW | MT_NS),
+#endif
+
+#ifdef CONFIG_HAS_MCUX_ENET_QOS
+	MMU_REGION_FLAT_ENTRY("ENET_QOS", DT_REG_ADDR(DT_INST(0, nxp_imx_enet_qos)),
+			      DT_REG_SIZE(DT_INST(0, nxp_imx_enet_qos)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_RW | MT_NS),
+#endif
 };
 
 const struct arm_mmu_config mmu_config = {
