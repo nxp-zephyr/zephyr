@@ -1,0 +1,11 @@
+# Copyright 2023 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  VGLite device node. This will enable the VGLite driver API, and attach it
+  to a hardware device defined in devicetree. The VGLite API is currently
+  integrated with LVGL, for graphical acceleration support.
+
+compatible: "nxp,vglite"
+
+include: base.yaml
