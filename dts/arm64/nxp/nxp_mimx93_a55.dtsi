@@ -139,4 +139,9 @@
 		compatible = "nxp,imx-flexcan";
 		reg = <0x425b0000 DT_SIZE_K(64)>;
 	};
+
+	wakeupmix_gpr: wakeupmix_gpr@42420000 {
+		compatible = "nxp,imx-wakeupmix";
+		reg = <0x42420000 DT_SIZE_K(64)>;
+	};
 };
