@@ -81,6 +81,11 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_NODELABEL(host_ram)),
 			      MT_NORMAL | MT_P_RW_U_NA | MT_NS),
 #endif /* CONFIG_SOF */
+	MMU_REGION_FLAT_ENTRY("WAKEUPMIX1_GPR",
+			      DT_REG_ADDR(DT_NODELABEL(wakeupmix_gpr)),
+			      DT_REG_SIZE(DT_NODELABEL(wakeupmix_gpr)),
+			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+
 #ifdef CONFIG_COUNTER_MCUX_TPM
 	MMU_REGION_FLAT_ENTRY("TPM2",
 			      DT_REG_ADDR(DT_INST(0, nxp_tpm_timer)),
