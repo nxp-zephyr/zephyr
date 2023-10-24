@@ -144,4 +144,28 @@
 		compatible = "nxp,imx-wakeupmix";
 		reg = <0x42420000 DT_SIZE_K(64)>;
 	};
+
+	lpi2c1: lpi2c@44340000 {
+		compatible = "nxp,imx-lpi2c";
+		reg = <0x44340000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai1: sai@443b0000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x443b0000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai2: sai@42650000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x42650000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	sai3: sai@42660000 {
+		compatible = "nxp,imx-sai";
+		reg = <0x42660000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
 };
