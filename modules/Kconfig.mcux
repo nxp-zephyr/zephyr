@@ -381,6 +381,11 @@ config HAS_MCUX_II2C
 	help
 	  Set if the II2C module is present on the Soc
 
+config HAS_MCUX_LPI2C
+	bool "Enable LPI2C driver in nxp_hal"
+	help
+	  Set if the LPI2C module is present on the Soc
+
 config COMPONENT_I2C
 	bool "Use Component I2C module"
 	help
@@ -416,6 +421,12 @@ config CODEC_WM8960
 	depends on CODEC
 	help
 	  Set if the CODEC WM8960 module is used.
+
+config CODEC_WM8962
+	bool "Use Codec WM8962 module"
+	depends on CODEC
+	help
+	  Set if the CODEC WM8962 module is used.
 
 config CODEC_WM8524
 	bool "Use Codec WM8524 module"
