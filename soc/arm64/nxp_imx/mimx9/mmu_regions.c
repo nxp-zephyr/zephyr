@@ -101,13 +101,12 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_INST(1, nxp_imx_sai)),
 			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
 
-
 	MMU_REGION_FLAT_ENTRY("SAI3",
 			      DT_REG_ADDR(DT_INST(2, nxp_imx_sai)),
 			      DT_REG_SIZE(DT_INST(2, nxp_imx_sai)),
 			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
 
-#ifdef CONFIG_COUNTER_MCUX_TPM
+#ifdef CONFIG_HAS_MCUX_TPM
 	MMU_REGION_FLAT_ENTRY("TPM2",
 			      DT_REG_ADDR(DT_INST(0, nxp_tpm_timer)),
 			      DT_REG_SIZE(DT_INST(0, nxp_tpm_timer)),
