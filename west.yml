@@ -96,7 +96,7 @@ manifest:
         - hal
     - name: hal_nxp
       remote: nxp
-      revision: 4496c6328c60056e9708fb3140f9eabd254a24d8
+      revision: 48e48e3018ea94499007f730cb7704cf09a068dc
       path: modules/hal/nxp
       groups:
         - hal
