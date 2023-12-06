@@ -181,6 +181,10 @@ __ramfunc int32_t power_manager_set_profile(uint32_t power_profile)
 	#ifdef CONFIG_FLASH_MCUX_FLEXSPI_XIP
 		flexspi_setup_clock(FLEXSPI0, 0U, 1U);	/* main_clk div by 1 */
 	#endif
+	#if DT_NODE_HAS_STATUS(DT_NODELABEL(gpu), okay) && CONFIG_VGLITE
+		CLOCK_SetClkDiv(kCLOCK_DivGpuClk, 1);
+	#endif
+
 		/* Disable the PFDs of SYSPLL */
 		CLKCTL0->SYSPLL0PFD |=	CLKCTL0_SYSPLL0PFD_PFD0_CLKGATE_MASK |
 					CLKCTL0_SYSPLL0PFD_PFD1_CLKGATE_MASK |
