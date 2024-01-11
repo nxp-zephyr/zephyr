@@ -84,7 +84,17 @@
 
 	pinmux_flexspi: pinmux_flexspi {
 		group0 {
-			pinmux = <FLEXSPI0B_DATA0_PIO1_11>,
+			pinmux = <FLEXSPI0A_SS0_N_PIO1_19>,
+				<FLEXSPI0A_DATA0_PIO1_20>,
+				<FLEXSPI0A_DATA1_PIO1_21>,
+				<FLEXSPI0A_DATA2_PIO1_22>,
+				<FLEXSPI0A_DATA3_PIO1_23>,
+				<FLEXSPI0A_DATA4_PIO1_24>,
+				<FLEXSPI0A_DATA5_PIO1_25>,
+				<FLEXSPI0A_DATA6_PIO1_26>,
+				<FLEXSPI0A_DATA7_PIO1_27>,
+				<FLEXSPI0A_SCLK_PIO1_18>,
+				<FLEXSPI0B_DATA0_PIO1_11>,
 				<FLEXSPI0B_DATA1_PIO1_12>,
 				<FLEXSPI0B_DATA2_PIO1_13>,
 				<FLEXSPI0B_DATA3_PIO1_14>,
@@ -102,6 +112,13 @@
 			pinmux = <GPIO_PIO212_PIO2_12>;
 			slew-rate = "normal";
 			drive-strength = "normal";
+		};
+		group2 {
+			pinmux = <FLEXSPI0A_DQS_PIO1_28>;
+			input-enable;
+			slew-rate = "normal";
+			bias-pull-down;
+			drive-strength = "high";
 		};
 	};
 	/*
