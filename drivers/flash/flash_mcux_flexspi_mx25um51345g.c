@@ -567,7 +567,7 @@ static const struct flash_driver_api flash_flexspi_nor_api = {
 
 #define FLASH_FLEXSPI_DEVICE_CONFIG(n)					\
 	{								\
-		.flexspiRootClk = MHZ(120),				\
+		.flexspiRootClk = DT_INST_PROP(n, spi_max_frequency),	\
 		.flashSize = DT_INST_PROP(n, size) / 8 / KB(1),		\
 		.CSIntervalUnit =					\
 			CS_INTERVAL_UNIT(				\
