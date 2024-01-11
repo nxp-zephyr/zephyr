@@ -163,8 +163,11 @@ int memc_flexspi_set_device_config(const struct device *dev,
 	key = irq_lock();
 
 	FLEXSPI_SetFlashConfig(data->base, &tmp_config, port);
-	FLEXSPI_UpdateLUT(data->base, data->port_luts[port].lut_offset,
-			  lut_ptr, lut_count);
+	/* FLEXSPI_UpdateLUT treats LUTs as 4 byte entries into LUT RAM, not
+	 * 16 byte LUT sequences, so we must multiply the count and offset by 4
+	 */
+	FLEXSPI_UpdateLUT(data->base, data->port_luts[port].lut_offset * 4,
+			  lut_ptr, lut_count * 4);
 	irq_unlock(key);
 
 	return 0;

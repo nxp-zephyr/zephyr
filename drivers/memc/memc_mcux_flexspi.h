@@ -15,8 +15,12 @@ enum memc_flexspi_clock_t {
 	MEMC_FLEXSPI_CLOCK_42M,
 };
 
-/* Size of a command in the LUT table */
-#define MEMC_FLEXSPI_CMD_SIZE 4U
+/* Size of a LUT sequence. LUT sequences are the smallest unit the FlexSPI
+ * supports for IP or AHB commands. Each LUT sequence contains 16 bytes of
+ * data, capable of holding 8 2 byte instructions. The FlexSPI IP has 512
+ * bytes of LUT ram, allowing for up to 256 instructions.
+ */
+#define MEMC_FLEXSPI_CMD_SIZE 16U
 
 /**
  * @brief Wait for the FlexSPI bus to be idle
