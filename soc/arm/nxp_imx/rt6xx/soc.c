@@ -319,6 +319,16 @@ static ALWAYS_INLINE void clock_init(void)
 	 * for FlexSPI.
 	 */
 	flexspi_setup_clock(FLEXSPI, 1U, 9U);
+#elif DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(flexspi), nxp_imx_flexspi, okay)
+	/* Power up FlexSPI SRAM */
+	POWER_DisablePD(kPDRUNCFG_APD_FLEXSPI_SRAM);
+	POWER_DisablePD(kPDRUNCFG_PPD_FLEXSPI_SRAM);
+	POWER_ApplyPD();
+	/* Setup clock frequency for FlexSPI1 */
+	CLOCK_AttachClk(kMAIN_CLK_to_FLEXSPI_CLK);
+	CLOCK_SetClkDiv(kCLOCK_DivFlexspiClk, 9);
+	/* Reset peripheral module */
+	RESET_PeripheralReset(kFLEXSPI_RST_SHIFT_RSTn);
 #endif
 
 #if CONFIG_COUNTER_NXP_MRT
