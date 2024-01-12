@@ -41,4 +41,13 @@ config NET_ZPERF_MAX_SESSIONS
 	help
 	  Upper size limit for connections handled by zperf.
 
+if NET_TC_THREAD_PRIO_CUSTOM
+config ZPERF_UDP_RECEIVER_THREAD_PRIO
+	int "Zperf UDP receiver thread priority"
+	default 0
+
+config ZPERF_TCP_RECEIVER_THREAD_PRIO
+	int "Zperf TCP receiver thread priority"
+	default 0
+endif # NET_TC_THREAD_CUSTOM_PRIO
 endif

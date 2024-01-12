@@ -278,6 +278,26 @@ config NET_TC_NUM_PRIORITIES
 	default NUM_COOP_PRIORITIES if NET_TC_THREAD_COOPERATIVE
 	default NUM_PREEMPT_PRIORITIES if NET_TC_THREAD_PREEMPTIVE
 
+config NET_TC_THREAD_PRIO_CUSTOM
+	bool "Net threads priority custom"
+	default n
+	help
+	  Customise net threads priority by each.
+
+if NET_TC_THREAD_PRIO_CUSTOM
+config NET_TCP_WORK_QUEUE_THREAD_PRIO
+	int "Net TCP work queue thread priority"
+	default 0
+
+config NET_TC_TX_THREAD_BASE_PRIO
+	int "Net TC TX thread priority base"
+	default 0
+
+config NET_TC_RX_THREAD_BASE_PRIO
+	int "Net TC RX thread priority base"
+	default 0
+endif # NET_TC_THREAD_CUSTOM_PRIO
+
 choice
 	prompt "Priority to traffic class mapping"
 	help
