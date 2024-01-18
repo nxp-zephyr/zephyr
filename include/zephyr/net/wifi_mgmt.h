@@ -53,6 +53,8 @@ extern "C" {
 enum net_request_wifi_cmd {
 	/** Get Wi-Fi driver and Firmware version */
 	NET_REQUEST_WIFI_CMD_VERSION = 1,
+	/** Set or get MAC Address */
+	NET_REQUEST_WIFI_CMD_MAC,
 	/** Scan for Wi-Fi networks */
 	NET_REQUEST_WIFI_CMD_SCAN,
 	/** Connect to a Wi-Fi network */
@@ -164,6 +166,11 @@ NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_WIFI_CHANNEL);
 	(_NET_WIFI_BASE | NET_REQUEST_WIFI_CMD_VERSION)
 
 NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_WIFI_VERSION);
+
+#define NET_REQUEST_WIFI_MAC				\
+	(_NET_WIFI_BASE | NET_REQUEST_WIFI_CMD_MAC)
+
+NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_WIFI_MAC);
 
 /** Wi-Fi management events */
 enum net_event_wifi_cmd {
@@ -588,6 +595,16 @@ struct wifi_reg_chan_info {
 	unsigned short dfs:1;
 } __packed;
 
+/** Wi-Fi MAC setup */
+struct wifi_mac_info {
+	/** MAC setting */
+	uint8_t mac[WIFI_MAC_ADDR_LEN];
+	/** Interface index */
+	uint8_t if_index;
+	/** Get or set operation */
+	enum wifi_mgmt_op oper;
+};
+
 /** Regulatory domain information or configuration */
 struct wifi_reg_domain {
 	/* Regulatory domain operation */
@@ -712,6 +729,14 @@ struct wifi_mgmt_ops {
 	 * @return 0 if ok version, < 0 if error
 	 */
 	int (*get_version)(const struct device *dev, struct wifi_version *params);
+	/** Set or get MAC Address
+	 *
+	 * @param dev Pointer to the device structure for the driver instance
+	 * @param MAC settings
+	 *
+	 * @return 0 if ok, < 0 if error
+	 */
+	int (*mac)(const struct device *dev, struct wifi_mac_info *params);
 	/** Scan for Wi-Fi networks
 	 *
 	 * @param dev Pointer to the device structure for the driver instance.

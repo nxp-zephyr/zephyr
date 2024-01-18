@@ -55,6 +55,16 @@ extern "C" {
  */
 int wifi_utils_parse_scan_bands(char *scan_bands_str, uint8_t *band_map);
 
+/**
+ * @brief Convert ASCII string to MAC address (colon-delimited format)
+ *
+ * @param bssid_str MAC address as a string (e.g., "00:11:22:33:44:55")
+ * @param bssid Buffer for the MAC address (6 bytes)
+ *
+ * @retval 0 on success.
+ * @retval -errno value in case of failure (e.g., string not a MAC address).
+ */
+int wifi_utils_parse_bssid(char *bssid_str, uint8_t *bssid);
 
 /**
  * @brief Append a string containing an SSID to an array of SSID strings.

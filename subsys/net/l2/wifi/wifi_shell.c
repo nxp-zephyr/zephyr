@@ -1860,6 +1860,122 @@ static int cmd_wifi_version(const struct shell *sh, size_t argc, char *argv[])
 	return 0;
 }
 
+static int parse_mac_args_to_params(const struct shell *sh, int argc, char *argv[],
+				    struct wifi_mac_info *mac_info, bool *do_mac_oper)
+{
+	struct getopt_state *state;
+	int opt;
+	int opt_index = 0;
+	int opt_num = 0;
+
+	static struct option long_options[] = {{"if_index", required_argument, 0, 'i'},
+					       {"mac", required_argument, 0, 'm'},
+					       {"get", no_argument, 0, 'g'},
+					       {"help", no_argument, 0, 'h'},
+					       {0, 0, 0, 0}};
+
+	while ((opt = getopt_long(argc, argv, "i:m:gh", long_options, &opt_index)) != -1) {
+		state = getopt_state_get();
+		switch (opt) {
+		case 'm':
+			if (wifi_utils_parse_bssid(optarg, mac_info->mac)) {
+				shell_fprintf(sh, SHELL_ERROR, "Invalid MAC: %s\n", optarg);
+				return -ENOEXEC;
+			}
+			mac_info->oper = WIFI_MGMT_SET;
+			opt_num++;
+			break;
+		case 'g':
+			mac_info->oper = WIFI_MGMT_GET;
+			opt_num++;
+			break;
+		case 'i':
+			mac_info->if_index = (uint8_t)atoi(optarg);
+			opt_num++;
+			break;
+		case 'h':
+			shell_help(sh);
+			*do_mac_oper = false;
+			opt_num++;
+			break;
+		case '?':
+		default:
+			shell_fprintf(sh, SHELL_ERROR, "Invalid option or option usage: %s\n",
+				      argv[opt_index + 1]);
+			return -ENOEXEC;
+			break;
+		}
+	}
+
+	return opt_num;
+}
+
+static int cmd_wifi_mac(const struct shell *sh, size_t argc, char *argv[])
+{
+	struct net_if *iface;
+	struct wifi_mac_info mac_info = {0};
+	int ret;
+	bool do_mac_oper = true;
+	uint8_t mac_string_buf[sizeof("xx:xx:xx:xx:xx:xx")];
+
+	if (argc > 1) {
+		ret = parse_mac_args_to_params(sh, argc, argv, &mac_info, &do_mac_oper);
+		if (ret < 0) {
+			shell_help(sh);
+			return -ENOEXEC;
+		}
+	} else {
+		shell_fprintf(sh, SHELL_ERROR, "Invalid number of arguments\n");
+		return -EINVAL;
+	}
+
+	if (do_mac_oper) {
+		/* Check interface index value. MAC validation must be performed by
+		 * lower layer
+		 */
+		if (mac_info.if_index == 0) {
+			iface = net_if_get_first_wifi();
+			if (iface == NULL) {
+				shell_fprintf(sh, SHELL_ERROR,
+					      "Cannot find the default wifi interface\n");
+				return -ENOEXEC;
+			}
+			mac_info.if_index = net_if_get_by_iface(iface);
+		} else {
+			iface = net_if_get_by_index(mac_info.if_index);
+			if (iface == NULL) {
+				shell_fprintf(sh, SHELL_ERROR,
+					      "Cannot find interface for if_index %d\n",
+					      mac_info.if_index);
+				return -ENOEXEC;
+			}
+		}
+
+		ret = net_mgmt(NET_REQUEST_WIFI_MAC, iface, &mac_info, sizeof(mac_info));
+
+		if (ret) {
+			shell_fprintf(sh, SHELL_ERROR, "mac %s operation failed with reason %d\n",
+				      mac_info.oper == WIFI_MGMT_GET ? "get" : "set", ret);
+			return -ENOEXEC;
+		}
+
+		if (mac_info.oper == WIFI_MGMT_GET) {
+			shell_fprintf(
+				sh, SHELL_NORMAL, "Wi-Fi current MAC for interface [%d] is %s\n",
+				mac_info.if_index,
+				net_sprint_ll_addr_buf(mac_info.mac, WIFI_MAC_ADDR_LEN,
+						       mac_string_buf, sizeof(mac_string_buf)));
+		} else {
+			shell_fprintf(sh, SHELL_NORMAL, "Wi-Fi MAC for interface [%d] set to %s\n",
+				      mac_info.if_index,
+				      net_sprint_ll_addr_buf(mac_info.mac, WIFI_MAC_ADDR_LEN,
+							     mac_string_buf,
+							     sizeof(mac_string_buf)));
+		}
+	}
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(wifi_cmd_ap,
 	SHELL_CMD_ARG(disable, NULL,
 		  "Disable Access Point mode.\n",
@@ -1910,6 +2026,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(wifi_twt_ops,
 SHELL_STATIC_SUBCMD_SET_CREATE(wifi_commands,
 	SHELL_CMD(version, NULL, "Print Wi-Fi Driver and Firmware version",
 		  cmd_wifi_version),
+	SHELL_CMD(mac, NULL, "Wi-Fi MAC setting\n"
+		"This is used to get/set the Wi-Fi interface MAC Address\n"
+		"parameters:"
+		"[-i : Interface index - optional argument]\n"
+		"[-m : MAC Address.]\n"
+		"[-g : Get current mode for a specific interface index.]\n"
+		"[-h : Help.]\n"
+		"Usage: Get operation example for interface index 1\n"
+		"wifi mac -g -i1\n"
+		"Set operation example for interface index 1 - set MAC Address\n"
+		"wifi mac -i1 -m <MAC>",
+		cmd_wifi_mac),
 	SHELL_CMD(ap, &wifi_cmd_ap, "Access Point mode commands.\n", NULL),
 	SHELL_CMD_ARG(connect, NULL,
 		  "Connect to a Wi-Fi AP\n"

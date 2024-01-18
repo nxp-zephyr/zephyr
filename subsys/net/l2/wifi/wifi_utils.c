@@ -261,6 +261,27 @@ int wifi_utils_parse_scan_bands(char *scan_bands_str, uint8_t *band_map)
 	return 0;
 }
 
+int wifi_utils_parse_bssid(char *bssid_str, uint8_t *bssid)
+{
+	size_t i;
+	uint8_t a, b;
+
+	for (i = 0; i < WIFI_MAC_ADDR_LEN; i++) {
+
+		if (char2hex(*bssid_str++, &a) < 0) {
+			return -EINVAL;
+		}
+		if (char2hex(*bssid_str++, &b) < 0) {
+			return -EINVAL;
+		}
+		bssid[i] = a << 4 | b;
+		if (i < WIFI_MAC_ADDR_LEN - 1 && *bssid_str++ != ':') {
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 int wifi_utils_parse_scan_ssids(char *scan_ssids_str,
 				const char *ssids[],
 				uint8_t num_ssids)
