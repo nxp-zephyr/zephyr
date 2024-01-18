@@ -51,8 +51,10 @@ extern "C" {
 
 /** Wi-Fi management commands */
 enum net_request_wifi_cmd {
+	/** Get Wi-Fi driver and Firmware version */
+	NET_REQUEST_WIFI_CMD_VERSION = 1,
 	/** Scan for Wi-Fi networks */
-	NET_REQUEST_WIFI_CMD_SCAN = 1,
+	NET_REQUEST_WIFI_CMD_SCAN,
 	/** Connect to a Wi-Fi network */
 	NET_REQUEST_WIFI_CMD_CONNECT,
 	/** Disconnect from a Wi-Fi network */
@@ -158,6 +160,11 @@ NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_WIFI_PACKET_FILTER);
 
 NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_WIFI_CHANNEL);
 
+#define NET_REQUEST_WIFI_VERSION			\
+	(_NET_WIFI_BASE | NET_REQUEST_WIFI_CMD_VERSION)
+
+NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_WIFI_VERSION);
+
 /** Wi-Fi management events */
 enum net_event_wifi_cmd {
 	/** Scan results available */
@@ -228,6 +235,14 @@ enum net_event_wifi_cmd {
 
 #define NET_EVENT_WIFI_AP_STA_DISCONNECTED			\
 	(_NET_WIFI_EVENT | NET_EVENT_WIFI_CMD_AP_STA_DISCONNECTED)
+
+/** Wi-Fi version */
+struct wifi_version {
+	/** Driver version */
+	char *drv_version;
+	/** Firmware version */
+	char *fw_version;
+};
 
 /**
  * @brief Wi-Fi structure to uniquely identify a band-channel pair
@@ -689,6 +704,14 @@ typedef void (*raw_scan_result_cb_t)(struct net_if *iface, int status,
 
 /** Wi-Fi management API */
 struct wifi_mgmt_ops {
+	/** Get Version of WiFi driver and Firmware
+	 *
+	 * @param dev Pointer to the device structure for the driver instance
+	 * @param params Version parameters
+	 *
+	 * @return 0 if ok version, < 0 if error
+	 */
+	int (*get_version)(const struct device *dev, struct wifi_version *params);
 	/** Scan for Wi-Fi networks
 	 *
 	 * @param dev Pointer to the device structure for the driver instance.
