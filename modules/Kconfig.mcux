@@ -434,6 +434,12 @@ config CODEC_WM8524
 	help
 	  Set if the CODEC WM8524 module is used.
 
+config CODEC_CS42448
+	bool "Use Codec CS42448 module"
+	depends on CODEC
+	help
+	  Set if the CODEC CS42448 module is used.
+
 config MDIO_ENET
 	bool "Use MDIO ENET module"
 	help
