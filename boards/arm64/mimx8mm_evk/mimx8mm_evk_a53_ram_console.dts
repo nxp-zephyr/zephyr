@@ -1,0 +1,41 @@
+/*
+ * Copyright 2020-2022,2024 NXP
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+
+#include <nxp/nxp_mimx8mm_a53.dtsi>
+#include "mimx8mm_evk-pinctrl.dtsi"
+
+/ {
+	model = "NXP i.MX8MM A53";
+	compatible = "fsl,mimx8mm";
+
+	chosen {
+		zephyr,sram = &sram0;
+	};
+
+	cpus {
+		cpu@0 {
+			status = "disabled";
+		};
+		cpu@1 {
+			status = "disabled";
+		};
+		cpu@2 {
+			status = "disabled";
+		};
+	};
+
+	sram0: memory@93c00000 {
+		reg = <0x93c00000 DT_SIZE_M(1)>;
+	};
+
+	ram_console: memory@93d00000 {
+		compatible = "zephyr,memory-region";
+		reg = <0x93d00000 DT_SIZE_K(4)>;
+		zephyr,memory-region = "RAM_CONSOLE";
+	};
+};

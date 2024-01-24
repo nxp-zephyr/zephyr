@@ -1,0 +1,13 @@
+identifier: mimx8mm_evk_a53_ram_console
+name: NXP i.MX8M Mini EVK A53 with RAM console
+type: mcu
+arch: arm64
+toolchain:
+  - zephyr
+  - cross-compile
+ram: 128
+testing:
+  ignore_tags:
+    - net
+    - bluetooth
+vendor: fsl
