@@ -14,6 +14,7 @@
 #include <zephyr/linker/sections.h>
 #include <zephyr/devicetree.h>
 
+#include <zephyr/linker/devicetree_regions.h>
 #include <zephyr/linker/linker-defs.h>
 #include <zephyr/linker/linker-tool.h>
 
@@ -60,6 +61,7 @@ MEMORY
 {
     FLASH     (rx) : ORIGIN = ROM_ADDR, LENGTH = ROM_SIZE
     RAM       (wx) : ORIGIN = RAM_ADDR, LENGTH = RAM_SIZE
+    LINKER_DT_REGIONS()
     /* Used by and documented in include/linker/intlist.ld */
     IDT_LIST  (wx) : ORIGIN = 0xFFFFF7FF, LENGTH = 2K
 }
@@ -320,6 +322,8 @@ SECTIONS
 
     /DISCARD/ : { *(.note.GNU-stack) }
 
+    /* Sections generated from 'zephyr,memory-region' nodes */
+    LINKER_DT_SECTIONS()
 
     /* Must be last in romable region */
     SECTION_PROLOGUE(.last_section,,)
