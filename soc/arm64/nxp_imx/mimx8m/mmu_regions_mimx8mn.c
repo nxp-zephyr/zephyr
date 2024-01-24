@@ -49,6 +49,13 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_ADDR(DT_NODELABEL(rdc)),
 			      DT_REG_SIZE(DT_NODELABEL(rdc)),
 			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(ram_console), okay)
+	MMU_REGION_FLAT_ENTRY("RAM_CONSOLE",
+			      DT_REG_ADDR(DT_NODELABEL(ram_console)),
+			      DT_REG_SIZE(DT_NODELABEL(ram_console)),
+			      MT_NORMAL_NC | MT_P_RW_U_NA | MT_NS),
+#endif
 };
 
 const struct arm_mmu_config mmu_config = {
