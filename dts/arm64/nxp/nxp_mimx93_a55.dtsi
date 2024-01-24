@@ -151,6 +151,12 @@
 		status = "disabled";
 	};
 
+	lpi2c4: lpi2c@42540000{
+		compatible = "nxp,imx-lpi2c";
+		reg = <0x42540000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
 	sai1: sai@443b0000 {
 		compatible = "nxp,imx-sai";
 		reg = <0x443b0000 DT_SIZE_K(64)>;
@@ -166,6 +172,12 @@
 	sai3: sai@42660000 {
 		compatible = "nxp,imx-sai";
 		reg = <0x42660000 DT_SIZE_K(64)>;
+		status = "disabled";
+	};
+
+	gpio2: gpio@43810000 {
+		compatible = "nxp,imx-rgpio";
+		reg = <0x43810000 DT_SIZE_K(64)>;
 		status = "disabled";
 	};
 };
