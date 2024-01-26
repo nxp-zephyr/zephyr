@@ -111,10 +111,12 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_INST(2, nxp_imx_sai)),
 			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
 
+#ifdef CONFIG_HAS_MCUX_RGPIO
 	MMU_REGION_FLAT_ENTRY("GPIO2",
 			      DT_REG_ADDR(DT_NODELABEL(gpio2)),
 			      DT_REG_SIZE(DT_NODELABEL(gpio2)),
 			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+#endif
 
 #ifdef CONFIG_HAS_MCUX_TPM
 	MMU_REGION_FLAT_ENTRY("TPM2",
@@ -127,6 +129,7 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_INST(1, nxp_tpm_timer)),
 			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
 #endif
+
 #ifdef CONFIG_HAS_MCUX_FLEXCAN
 	MMU_REGION_FLAT_ENTRY("FLEXCAN",
 			      DT_REG_ADDR(DT_INST(0, nxp_imx_flexcan)),
