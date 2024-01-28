@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 NXP
+ * Copyright 2021-2022,2024 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -34,6 +34,13 @@
 	sram0: memory@c0000000 {
 		reg = <0xc0000000 DT_SIZE_M(1)>;
 	};
+};
+
+&uart2 {
+	current-speed = <115200>;
+	pinctrl-0 = <&uart2_default>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &uart4 {
