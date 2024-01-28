@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022,2024 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -91,6 +91,12 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_ADDR(DT_INST(1, nxp_tpm_timer)),
 			      DT_REG_SIZE(DT_INST(1, nxp_tpm_timer)),
 			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+#endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(ram_console), okay)
+	MMU_REGION_FLAT_ENTRY("RAM_CONSOLE",
+			      DT_REG_ADDR(DT_NODELABEL(ram_console)),
+			      DT_REG_SIZE(DT_NODELABEL(ram_console)),
+			      MT_NORMAL_NC | MT_P_RW_U_NA | MT_NS),
 #endif
 };
 
