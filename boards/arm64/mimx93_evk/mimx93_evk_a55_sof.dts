@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -77,6 +77,14 @@
 	host_ram: memory@80000000 {
 		reg = <0x80000000 DT_SIZE_M(1024)>;
 	};
+};
+
+&lpuart1 {
+	status = "disabled";
+	current-speed = <115200>;
+	/* clocks = <&ccm IMX_CCM_UART4_CLK 0x6c 24>; */
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-names = "default";
 };
 
 &lpuart2 {
