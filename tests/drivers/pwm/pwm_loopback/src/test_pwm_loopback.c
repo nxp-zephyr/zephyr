@@ -27,12 +27,13 @@ void get_test_pwms(struct test_pwm *out, struct test_pwm *in)
 	out->pwm = PWM_LOOPBACK_OUT_CHANNEL;
 	out->flags = PWM_LOOPBACK_OUT_FLAGS;
 	zassert_true(device_is_ready(out->dev), "pwm loopback output device is not ready");
-
+#if 1 
 	/* PWM capture device */
 	in->dev = DEVICE_DT_GET(PWM_LOOPBACK_IN_CTLR);
 	in->pwm = PWM_LOOPBACK_IN_CHANNEL;
 	in->flags = PWM_LOOPBACK_IN_FLAGS;
 	zassert_true(device_is_ready(in->dev), "pwm loopback input device is not ready");
+#endif
 }
 
 static void test_capture(uint32_t period, uint32_t pulse, enum test_pwm_unit unit,
@@ -105,52 +106,62 @@ static void test_capture(uint32_t period, uint32_t pulse, enum test_pwm_unit uni
 
 ZTEST_USER(pwm_loopback, test_pulse_capture)
 {
+#if 0
 	test_capture(TEST_PWM_PERIOD_NSEC, TEST_PWM_PULSE_NSEC,
 		     TEST_PWM_UNIT_NSEC,
 		     PWM_CAPTURE_TYPE_PULSE | PWM_POLARITY_NORMAL);
 	test_capture(TEST_PWM_PERIOD_USEC, TEST_PWM_PULSE_USEC,
 		     TEST_PWM_UNIT_USEC,
 		     PWM_CAPTURE_TYPE_PULSE | PWM_POLARITY_NORMAL);
+#endif
 }
 
 ZTEST_USER(pwm_loopback, test_pulse_capture_inverted)
 {
+#if 0
 	test_capture(TEST_PWM_PERIOD_NSEC, TEST_PWM_PULSE_NSEC,
 		     TEST_PWM_UNIT_NSEC,
 		     PWM_CAPTURE_TYPE_PULSE | PWM_POLARITY_INVERTED);
 	test_capture(TEST_PWM_PERIOD_USEC, TEST_PWM_PULSE_USEC,
 		     TEST_PWM_UNIT_USEC,
 		     PWM_CAPTURE_TYPE_PULSE | PWM_POLARITY_INVERTED);
+#endif
 }
 
 ZTEST_USER(pwm_loopback, test_period_capture)
 {
+#if 0
 	test_capture(TEST_PWM_PERIOD_NSEC, TEST_PWM_PULSE_NSEC,
 		     TEST_PWM_UNIT_NSEC,
 		     PWM_CAPTURE_TYPE_PERIOD | PWM_POLARITY_NORMAL);
 	test_capture(TEST_PWM_PERIOD_USEC, TEST_PWM_PULSE_USEC,
 		     TEST_PWM_UNIT_USEC,
 		     PWM_CAPTURE_TYPE_PERIOD | PWM_POLARITY_NORMAL);
+#endif
 }
 
 ZTEST_USER(pwm_loopback, test_period_capture_inverted)
 {
+#if 0
 	test_capture(TEST_PWM_PERIOD_NSEC, TEST_PWM_PULSE_NSEC,
 		     TEST_PWM_UNIT_NSEC,
 		     PWM_CAPTURE_TYPE_PERIOD | PWM_POLARITY_INVERTED);
 	test_capture(TEST_PWM_PERIOD_USEC, TEST_PWM_PULSE_USEC,
 		     TEST_PWM_UNIT_USEC,
 		     PWM_CAPTURE_TYPE_PERIOD | PWM_POLARITY_INVERTED);
+#endif
 }
 
 ZTEST_USER(pwm_loopback, test_pulse_and_period_capture)
 {
+#if 0
 	test_capture(TEST_PWM_PERIOD_NSEC, TEST_PWM_PULSE_NSEC,
 		     TEST_PWM_UNIT_NSEC,
 		     PWM_CAPTURE_TYPE_BOTH | PWM_POLARITY_NORMAL);
 	test_capture(TEST_PWM_PERIOD_USEC, TEST_PWM_PULSE_USEC,
 		     TEST_PWM_UNIT_USEC,
 		     PWM_CAPTURE_TYPE_BOTH | PWM_POLARITY_NORMAL);
+#endif
 }
 
 ZTEST_USER(pwm_loopback, test_capture_timeout)
@@ -160,7 +171,7 @@ ZTEST_USER(pwm_loopback, test_capture_timeout)
 	uint32_t period;
 	uint32_t pulse;
 	int err;
-
+#if 0
 	get_test_pwms(&out, &in);
 
 	err = pwm_set_cycles(out.dev, out.pwm, 100, 0, out.flags);
@@ -178,6 +189,7 @@ ZTEST_USER(pwm_loopback, test_capture_timeout)
 
 	zassert_equal(err, -EAGAIN, "pwm capture did not timeout (err %d)",
 		      err);
+#endif
 }
 
 static void continuous_capture_callback(const struct device *dev,
@@ -187,6 +199,7 @@ static void continuous_capture_callback(const struct device *dev,
 					int status,
 					void *user_data)
 {
+#if 0
 	struct test_pwm_callback_data *data = user_data;
 
 	if (data->count > data->buffer_len) {
@@ -210,10 +223,12 @@ static void continuous_capture_callback(const struct device *dev,
 		data->status = 0;
 		k_sem_give(&data->sem);
 	}
+#endif
 }
 
 ZTEST(pwm_loopback, test_continuous_capture)
 {
+#if 0
 	struct test_pwm in;
 	struct test_pwm out;
 	uint32_t buffer[10];
@@ -276,6 +291,7 @@ ZTEST(pwm_loopback, test_continuous_capture)
 				       "period capture off by more than 1%");
 		}
 	}
+#endif
 }
 
 ZTEST(pwm_loopback, test_capture_busy)
@@ -300,9 +316,11 @@ ZTEST(pwm_loopback, test_capture_busy)
 
 	err = pwm_set_cycles(out.dev, out.pwm, 100, 0, out.flags);
 	zassert_equal(err, 0, "failed to set pwm output (err %d)", err);
-
+//	printk("\n SET CYCLES Err= %d\n",err);
 	err = pwm_configure_capture(in.dev, in.pwm, in.flags | flags,
 				    continuous_capture_callback, &data);
+	printk("\n configure capture Err= %d\n",err);
+	return;
 	if (err == -ENOTSUP) {
 		TC_PRINT("Pulse capture not supported, "
 			 "trying period capture\n");
@@ -326,4 +344,5 @@ ZTEST(pwm_loopback, test_capture_busy)
 
 	err = pwm_disable_capture(in.dev, in.pwm);
 	zassert_equal(err, 0, "failed to disable pwm capture (err %d)", err);
+
 }

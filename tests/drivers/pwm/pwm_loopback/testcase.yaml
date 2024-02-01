@@ -6,6 +6,10 @@ tests:
       - userspace
     depends_on: pwm
     filter: dt_compat_enabled("test-pwm-loopback")
+     extra_configs:
+      - CONFIG_PWM_MCUX_FLEXIO=y
+    filter: CONFIG_MCUX_FLEXIO
+    platform_allow: mr_canhubk3
     harness: ztest
     harness_config:
       fixture: pwm_loopback

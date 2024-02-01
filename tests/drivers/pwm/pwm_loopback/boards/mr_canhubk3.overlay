@@ -10,32 +10,53 @@
 	pwm_loopback_0 {
 		compatible = "test-pwm-loopback";
 		/* Connect P8A pin 3 and P8A pin 6 */
-		pwms = <&emios0_pwm 0 0 PWM_POLARITY_NORMAL>,
-			<&emios0_pwm 1 0 PWM_POLARITY_NORMAL>;
+		pwms = <&flexio0_pwm0 0 0 PWM_POLARITY_NORMAL>,
+			<&flexio0_pwm1 1 0 PWM_POLARITY_NORMAL>;
 	};
 };
 
 &pinctrl {
-	emios0_default {
-		group2 {
-			pinmux = <PTB13_EMIOS_0_CH1_G_I>;
-			input-enable;
+
+	flexio0_pwm0_default: flexio0_pwm0_default {
+		group1 {
+			pinmux = <PTA17_FXIO_D19_O>;
+			output-enable;
+		};
+	};
+
+	flexio0_pwm1_default: flexio0_pwm1_default {
+		group1 {
+			pinmux = <PTE7_FXIO_D11_O>;
+			output-enable;
 		};
 	};
 };
 
-&emios0 {
-	emios0_pwm: pwm {
-		pinctrl-0 = <&emios0_default>;
+
+&flexio0 {
+	status = "okay";
+
+	flexio0_pwm0: pwm0 {
+		pinctrl-0 = <&flexio0_pwm0_default>;
 		pinctrl-names = "default";
 		status = "okay";
+		timer-id = <0>;
+		pin-id = <19>;
+		period = <401>;
+		duty-cycle = <200>;
+		prescaler = <0>;
+		polarity = <0>;
+	};
 
-		pwm_1 {
-			/delete-property/ period;
-			/delete-property/ polarity;
-			/delete-property/ duty-cycle;
-			prescaler = <16>;
-			pwm-mode = "SAIC";
-		};
+	flexio0_pwm1: pwm1 {
+		pinctrl-0 = <&flexio0_pwm1_default>;
+		pinctrl-names = "default";
+		status = "okay";
+		timer-id = <1>;
+		pin-id = <11>;
+		period = <401>;
+		duty-cycle = <200>;
+		prescaler = <5>;
+		polarity = <0>;
 	};
 };
