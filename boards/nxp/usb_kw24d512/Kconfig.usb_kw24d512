@@ -1,0 +1,8 @@
+# Copyright 2024 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_USB_KW24D512
+	select SOC_MKW24D5
+
+config SOC_PART_NUMBER
+	default "MKW24D512VHA5"
