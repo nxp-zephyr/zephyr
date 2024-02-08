@@ -1,0 +1,8 @@
+# Copyright 2024 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_TWR_KV58F220M
+	select SOC_MKV58F24
+
+config SOC_PART_NUMBER
+	default "MKV58F1M0VLQ24"
