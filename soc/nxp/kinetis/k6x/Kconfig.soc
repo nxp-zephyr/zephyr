@@ -1,0 +1,23 @@
+# Kinetis K6X MCU line
+
+# Copyright 2024 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_KINETIS_K6X
+	bool
+	select SOC_FAMILY_KINETIS
+
+config SOC_SERIES
+	default "k6x" if SOC_SERIES_KINETIS_K6X
+
+config SOC_MK64F12
+	bool
+	select SOC_SERIES_KINETIS_K6X
+
+config SOC_MK66F18
+	bool
+	select SOC_SERIES_KINETIS_K6X
+
+config SOC
+	default "mk64f12" if SOC_MK64F12
+	default "mk66f18" if SOC_MK66F18
