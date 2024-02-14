@@ -23,6 +23,13 @@ config SOC_MK22F12
 	bool
 	select SOC_SERIES_KINETIS_K2X
 
+config SOC_PART_NUMBER_MK22FN512VLH12
+	bool
+
+config SOC_PART_NUMBER
+	string
+	default "MK22FN512VLH12" if SOC_PART_NUMBER_MK22FN512VLH12
+
 config SOC
 	default "mk22f51212" if SOC_MK22F51212
 	default "mk22f12" if SOC_MK22F12
