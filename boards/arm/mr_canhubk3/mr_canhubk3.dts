@@ -39,6 +39,8 @@
 		watchdog0 = &fs26_wdt;
 		/* For pwm test suites */
 		pwm-0 = &emios0_pwm;
+//		pwm-1 = &flexio0_pwm0;
+//		pwm-2 = &flexio0_pwm1;
 		red-pwm-led = &user_led1_red_pwm;
 		green-pwm-led = &user_led1_green_pwm;
 		blue-pwm-led = &user_led1_blue_pwm;
@@ -594,6 +596,35 @@
 		};
 	};
 };
+
+/*
+&flexio0 {
+	status = "okay";
+
+	flexio0_pwm0: pwm0 {
+		pinctrl-0 = <&flexio0_pwm0_default>;
+		pinctrl-names = "default";
+		status = "okay";
+		timer-id = <0>;
+		pin-id = <19>;
+		period = <401>;
+		duty-cycle = <200>;
+		prescaler = <0>;
+		polarity = <1>;
+	};
+
+	flexio0_pwm1: pwm1 {
+		pinctrl-0 = <&flexio0_pwm1_default>;
+		pinctrl-names = "default";
+		status = "okay";
+		timer-id = <1>;
+		pin-id = <11>;
+		period = <401>;
+		duty-cycle = <200>;
+		prescaler = <0>;
+		polarity = <1>;
+	};
+};*/
 
 &lcu1 {
 	status = "okay";

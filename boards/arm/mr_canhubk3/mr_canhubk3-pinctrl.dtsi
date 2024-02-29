@@ -300,6 +300,20 @@
 		};
 	};
 
+/*	flexio0_pwm0_default: flexio0_pwm0_default {
+		group1 {
+			pinmux = <PTA17_FXIO_D19_O>;
+			output-enable;
+		};
+	};
+
+	flexio0_pwm1_default: flexio0_pwm1_default {
+		group1 {
+			pinmux = <PTE7_FXIO_D11_O>;
+			output-enable;
+		};
+	};*/
+
 	qdec_s32: qdec_s32 {
 		group1 {
 			pinmux = <PTB2_TRGMUX_IN3>,
