@@ -8,11 +8,13 @@
  */
 
 
+#include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/device.h>
 #include <zephyr/init.h>
 #include <zephyr/linker/devicetree_regions.h>
+#include <zephyr/drivers/console/ram_console.h>
 
 extern void __printk_hook_install(int (*fn)(int));
 extern void __stdout_hook_install(int (*fn)(int));
@@ -24,23 +26,31 @@ char ram_console[DT_REG_SIZE(DT_NODELABEL(ram_console))] __attribute__((__sectio
 char ram_console[CONFIG_RAM_CONSOLE_BUFFER_SIZE + 1];
 #endif
 
-static int pos;
-static unsigned int size;
+static struct ram_console_header *header;
 
 static int ram_console_out(int character)
 {
-	ram_console[pos] = (char)character;
-	pos = (pos + 1) % size;
+	header->buf_addr[header->pos] = (char)character;
+	header->pos = (header->pos + 1) % header->buf_size;
 	return character;
 }
 
 static int ram_console_init(void)
 {
+	unsigned int size;
+
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(ram_console), okay)
 	size = DT_REG_SIZE(DT_NODELABEL(ram_console)) - 1;
 #else
 	size = CONFIG_RAM_CONSOLE_BUFFER_SIZE;
 #endif
+	memset(ram_console, 0, size + 1);
+	header = (struct ram_console_header *)ram_console;
+	strcpy(header->flag_string, RAM_CONSOLE_HEAD_STR);
+	header->buf_addr = (char *)(ram_console + RAM_CONSOLE_HEAD_SIZE);
+	header->buf_size = size - RAM_CONSOLE_HEAD_SIZE;
+	header->pos = 0;
+
 	__printk_hook_install(ram_console_out);
 	__stdout_hook_install(ram_console_out);
 
