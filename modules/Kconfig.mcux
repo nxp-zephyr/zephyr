@@ -300,7 +300,7 @@ config HAS_MCUX_DAC32
 	  Set if the Digital-to-Analog (DAC32) module is present in the SoC.
 
 config HAS_MCUX_TPM
-	bool
+	bool "Enable MCUX TPM driver in nxp_hal"
 	help
 	  Set if the Timer/PWM Module is present in the SoC
 
