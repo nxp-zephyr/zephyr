@@ -45,6 +45,18 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_NODELABEL(iomuxc)),
 			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
 
+#ifdef CONFIG_HAS_MCUX_GPT
+	MMU_REGION_FLAT_ENTRY("GPT0",
+			      DT_REG_ADDR(DT_INST(0, nxp_imx_gpt)),
+			      DT_REG_SIZE(DT_INST(0, nxp_imx_gpt)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+
+	MMU_REGION_FLAT_ENTRY("GPT1",
+			      DT_REG_ADDR(DT_INST(1, nxp_imx_gpt)),
+			      DT_REG_SIZE(DT_INST(1, nxp_imx_gpt)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+#endif
+
 	MMU_REGION_FLAT_ENTRY("RDC",
 			      DT_REG_ADDR(DT_NODELABEL(rdc)),
 			      DT_REG_SIZE(DT_NODELABEL(rdc)),
