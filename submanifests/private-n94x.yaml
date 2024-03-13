@@ -2,7 +2,7 @@ manifest:
 
   projects:
     - name: hal_nxp
-      url: git@github.com:nxp-zephyr/hal_nxp.git
+      url: http://github.com/nxp-zephyr/hal_nxp.git
       revision: a9d31f16b25bb4d8d41ce4dfc0d0627016f59b59
       path: modules/hal/nxp
       groups:
