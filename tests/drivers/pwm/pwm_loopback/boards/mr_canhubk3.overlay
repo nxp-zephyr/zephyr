@@ -13,6 +13,12 @@
 		pwms = <&emios0_pwm 0 0 PWM_POLARITY_NORMAL>,
 			<&emios0_pwm 1 0 PWM_POLARITY_NORMAL>;
 	};
+
+	pwm_loopback_1 {
+		compatible = "test-pwm-loopback";
+		pwms = <&flexio0_pwm 0 0 PWM_POLARITY_NORMAL>,
+		 <&flexio0_pwm 1 0 PWM_POLARITY_NORMAL>;
+ 	};
 };
 
 &pinctrl {
@@ -20,6 +26,13 @@
 		group2 {
 			pinmux = <PTB13_EMIOS_0_CH1_G_I>;
 			input-enable;
+		};
+	};
+
+	flexio0_pwm_default: flexio0_pwm_default {
+		group1 {
+			pinmux = <PTA17_FXIO_D19_O>, <PTE7_FXIO_D11_O>;
+			output-enable;
 		};
 	};
 };
@@ -36,6 +49,32 @@
 			/delete-property/ duty-cycle;
 			prescaler = <16>;
 			pwm-mode = "SAIC";
+		};
+	};
+};
+
+&flexio0 {
+	status = "okay";
+
+	flexio0_pwm: pwm {
+		pinctrl-0 = <&flexio0_pwm_default>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		pwm_0 {
+			pin-id = <19>;
+			period = <51>;
+			duty-cycle = <40>;
+			prescaler = <5>;
+			polarity = <0>;
+		};
+	
+		pwm_1 {
+			pin-id = <11>;
+			period = <401>;
+			duty-cycle = <200>;
+			prescaler = <5>;
+			polarity = <0>;
 		};
 	};
 };
