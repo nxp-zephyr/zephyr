@@ -462,6 +462,8 @@ static void rfcomm_dlc_init(struct bt_rfcomm_dlc *dlc,
 			    uint8_t dlci,
 			    bt_rfcomm_role_t role)
 {
+	struct bt_rfcomm_port_settings port_settings = BT_RFCOMM_RPN_SETTINGS_PARAM_DEFAULT;
+
 	LOG_DBG("dlc %p", dlc);
 
 	dlc->dlci = dlci;
@@ -469,6 +471,9 @@ static void rfcomm_dlc_init(struct bt_rfcomm_dlc *dlc,
 	dlc->rx_credit = RFCOMM_DEFAULT_CREDIT;
 	dlc->state = BT_RFCOMM_STATE_INIT;
 	dlc->role = role;
+	/* Set remote port settings to default */
+	memcpy(&dlc->port_settings, &port_settings, sizeof(dlc->port_settings));
+
 	k_work_init_delayable(&dlc->rtx_work, rfcomm_dlc_rtx_timeout);
 
 	/* Start a conn timer which includes auth as well */
@@ -1229,26 +1234,98 @@ static void rfcomm_handle_rls(struct bt_rfcomm_session *session,
 	rfcomm_send_rls(dlc, BT_RFCOMM_MSG_RESP_CR, rls->line_status);
 }
 
+static void rfcomm_peer_port_updated(struct bt_rfcomm_port_settings *rpn, struct bt_rfcomm_port_settings *new_rpn)
+{
+	/* Update baudrate */
+	if (new_rpn->param_mask & BT_RFCOMM_RPN_PARAM_MASK_BIT_RATE) {
+		rpn->baud_rate = new_rpn->baud_rate;
+	}
+
+	/* Update data bits */
+	if (new_rpn->param_mask & BT_RFCOMM_RPN_PARAM_MASK_DATA_BITS) {
+		rpn->line_settings = BT_RFCOMM_RPN_UPDATE_DATA_BITS(rpn->line_settings, new_rpn->line_settings);
+	}
+
+	/* Update stop bits */
+	if (new_rpn->param_mask & BT_RFCOMM_RPN_PARAM_MASK_STOP_BITS) {
+		rpn->line_settings = BT_RFCOMM_RPN_UPDATE_STOP_BITS(rpn->line_settings, new_rpn->line_settings);
+	}
+
+	/* Update parity bit */
+	if (new_rpn->param_mask & BT_RFCOMM_RPN_PARAM_MASK_PARITY) {
+		rpn->line_settings = BT_RFCOMM_RPN_UPDATE_PARITY(rpn->line_settings, new_rpn->line_settings);
+	}
+
+	/* Update parity type */
+	if (new_rpn->param_mask & BT_RFCOMM_RPN_PARAM_MASK_PARITY_TYPE) {
+		rpn->line_settings = BT_RFCOMM_RPN_UPDATE_PARITY_TYPE(rpn->line_settings, new_rpn->line_settings);
+	}
+
+	/* Update XON character */
+	if (new_rpn->param_mask & BT_RFCOMM_RPN_PARAM_MASK_XON_CHAR) {
+		rpn->xon_char = new_rpn->xon_char;
+	}
+
+	/* Update XON character */
+	if (new_rpn->param_mask & BT_RFCOMM_RPN_PARAM_MASK_XOFF_CHAR) {
+		rpn->xoff_char = new_rpn->xoff_char;
+	}
+
+	/* Update FC */
+	if (new_rpn->param_mask & BT_RFCOMM_RPN_PARAM_MASK_FC) {
+		rpn->flow_control = new_rpn->flow_control & new_rpn->param_mask;
+	}
+
+	rpn->param_mask = 0;
+}
+
 static void rfcomm_handle_rpn(struct bt_rfcomm_session *session,
 			      struct net_buf *buf, uint8_t cr)
 {
 	struct bt_rfcomm_rpn default_rpn, *rpn = (void *)buf->data;
 	uint8_t dlci = BT_RFCOMM_GET_DLCI(rpn->dlci);
-	uint8_t data_bits, stop_bits, parity_bits;
 	/* Exclude fcs to get number of value bytes */
 	uint8_t value_len = buf->len - 1;
+	struct bt_rfcomm_dlc *dlc;
+	int err;
+
+	dlc = rfcomm_dlcs_lookup_dlci(session->dlcs, dlci);
 
 	LOG_DBG("dlci %d", dlci);
 
 	if (!cr) {
-		/* Ignore if its a response */
+		/* Handle RPN response */
+		if (atomic_test_and_clear_bit(dlc->flags, BT_RFCOMM_DLC_CTL_CMD)) {
+			if (atomic_test_and_clear_bit(dlc->flags, BT_RFCOMM_DLC_RPN_SET)) {
+				rpn->settings.param_mask = sys_le16_to_cpu(rpn->settings.param_mask);
+				rfcomm_peer_port_updated(&dlc->port_settings, &rpn->settings);
+			}
+
+			if (atomic_test_and_clear_bit(dlc->flags, BT_RFCOMM_DLC_RPN_GET)) {
+				memcpy(&dlc->port_settings, &rpn->settings, sizeof(dlc->port_settings));
+				dlc->port_settings.param_mask = 0;
+			}
+		}
+
+		if (dlc && dlc->ops && dlc->ops->remote_port_updated) {
+			dlc->ops->remote_port_updated(dlc, &dlc->port_settings);
+		}
 		return;
 	}
 
+	/* Handle RPN request */
 	if (value_len == sizeof(*rpn)) {
-		/* Accept all the values proposed by the sender */
-		rpn->param_mask = sys_cpu_to_le16(BT_RFCOMM_RPN_PARAM_MASK_ALL);
-		rfcomm_send_rpn(session, BT_RFCOMM_MSG_RESP_CR, rpn);
+		if (dlc && dlc->ops && dlc->ops->rpn) {
+			rpn->settings.param_mask = sys_le16_to_cpu(rpn->settings.param_mask);
+			dlc->ops->rpn(dlc, &rpn->settings);
+			rpn->settings.param_mask = sys_cpu_to_le16(rpn->settings.param_mask);
+		}
+
+		err = rfcomm_send_rpn(session, BT_RFCOMM_MSG_RESP_CR, rpn);
+		if (err >= 0) {
+			rpn->settings.param_mask = sys_le16_to_cpu(rpn->settings.param_mask);
+			rfcomm_peer_port_updated(&dlc->local_port_settings, &rpn->settings);
+		}
 		return;
 	}
 
@@ -1256,22 +1333,9 @@ static void rfcomm_handle_rpn(struct bt_rfcomm_session *session,
 		return;
 	}
 
-	/* If only one value byte then current port settings has to be returned
-	 * We will send default values
-	 */
 	default_rpn.dlci = BT_RFCOMM_SET_ADDR(dlci, 1);
-	default_rpn.baud_rate = BT_RFCOMM_RPN_BAUD_RATE_9600;
-	default_rpn.flow_control = BT_RFCOMM_RPN_FLOW_NONE;
-	default_rpn.xoff_char = BT_RFCOMM_RPN_XOFF_CHAR;
-	default_rpn.xon_char = BT_RFCOMM_RPN_XON_CHAR;
-	data_bits = BT_RFCOMM_RPN_DATA_BITS_8;
-	stop_bits = BT_RFCOMM_RPN_STOP_BITS_1;
-	parity_bits = BT_RFCOMM_RPN_PARITY_NONE;
-	default_rpn.line_settings = BT_RFCOMM_SET_LINE_SETTINGS(data_bits,
-								stop_bits,
-								parity_bits);
-	default_rpn.param_mask = sys_cpu_to_le16(BT_RFCOMM_RPN_PARAM_MASK_ALL);
-
+	memcpy(&default_rpn.settings, &dlc->local_port_settings, sizeof(default_rpn.settings));
+	default_rpn.settings.param_mask = 0;
 	rfcomm_send_rpn(session, BT_RFCOMM_MSG_RESP_CR, &default_rpn);
 }
 
@@ -1868,4 +1932,57 @@ void bt_rfcomm_init(void)
 	for (i = 0; i < ARRAY_SIZE(rfcomm_tx); i++) {
 		k_fifo_put(&rfcomm_tx_free, &rfcomm_tx[i]);
 	}
+}
+
+static int rfcomm_get_rpn(struct bt_rfcomm_session *session, uint8_t cr,
+			   uint8_t dlci)
+{
+	struct net_buf *buf;
+	uint8_t fcs;
+
+	buf = rfcomm_make_uih_msg(session, cr, BT_RFCOMM_RPN, sizeof(dlci));
+
+	net_buf_add_mem(buf, &dlci, sizeof(dlci));
+
+	fcs = rfcomm_calc_fcs(BT_RFCOMM_FCS_LEN_UIH, buf->data);
+	net_buf_add_u8(buf, fcs);
+
+	return rfcomm_send(session, buf);
+}
+
+int bt_rfcomm_dlc_rpn(struct bt_rfcomm_dlc *dlc, struct bt_rfcomm_port_settings *port_settings)
+{
+	struct bt_rfcomm_rpn rpn;
+	int err;
+
+	LOG_DBG("dlc %p", dlc);
+
+	if ((dlc == NULL) || (dlc->session == NULL)) {
+		return -EINVAL;
+	}
+
+	if (dlc->state != BT_RFCOMM_STATE_CONNECTED) {
+		return -ENOTCONN;
+	}
+
+	if (atomic_test_and_set_bit(dlc->flags, BT_RFCOMM_DLC_CTL_CMD)) {
+		return -EBUSY;
+	}
+
+	rpn.dlci = BT_RFCOMM_SET_ADDR(dlc->dlci, 1);
+	if (port_settings != NULL) {
+		atomic_set_bit(dlc->flags, BT_RFCOMM_DLC_RPN_SET);
+		memcpy(&rpn.settings, port_settings, sizeof(*port_settings));
+		err = rfcomm_send_rpn(dlc->session, BT_RFCOMM_MSG_CMD_CR, &rpn);
+	} else {
+		atomic_set_bit(dlc->flags, BT_RFCOMM_DLC_RPN_GET);
+		err = rfcomm_get_rpn(dlc->session, BT_RFCOMM_MSG_CMD_CR, rpn.dlci);
+	}
+	if (err < 0) {
+		atomic_clear_bit(dlc->flags, BT_RFCOMM_DLC_RPN_SET);
+		atomic_clear_bit(dlc->flags, BT_RFCOMM_DLC_RPN_GET);
+		atomic_clear_bit(dlc->flags, BT_RFCOMM_DLC_CTL_CMD);
+	}
+
+	return err;
 }
