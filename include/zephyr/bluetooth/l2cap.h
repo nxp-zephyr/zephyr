@@ -240,6 +240,43 @@ struct bt_l2cap_br_endpoint {
 	uint16_t				cid;
 	/** Endpoint Maximum Transmission Unit */
 	uint16_t				mtu;
+	/** Endpoint Link Mode.
+	 *  The value is defined as BT_L2CAP_BR_LINK_MODE_*
+	 */
+	uint8_t					mode;
+	/** Endpoint Maximum Transmit */
+	uint8_t					transmit;
+	/** Endpoint Retransmission Timeout */
+	uint16_t				ret_timeout;
+	/** Endpoint Monitor Timeout */
+	uint16_t				monitor_timeout;
+	/** Endpoint Maximum PDU payload Size */
+	uint16_t				mps;
+	/** Endpoint Maximum Window Size */
+	uint16_t				window;
+	/** Endpoint FCS Type */
+	uint8_t					fcs;
+	/** Endpoint Extended Control */
+	bool					extended_control;
+};
+
+struct bt_l2cap_br_window {
+	sys_snode_t node;
+
+	/** tx seq */
+	uint16_t tx_seq;
+	/** data address */
+	uint8_t *data;
+	/** data len */
+	uint16_t len;
+	/** Transmit Counter */
+	uint8_t transmit_counter;
+	/** SAR flag */
+	uint8_t sar;
+	/** srej flag */
+	bool srej;
+	/* Save PDU state */
+	struct net_buf_simple_state pdu;
 };
 
 /** @brief BREDR L2CAP Channel structure. */
@@ -270,7 +307,178 @@ struct bt_l2cap_br_chan {
 	atomic_t			_pdu_ready_lock;
 	/** @internal Queue of net bufs not yet sent to lower layer */
 	struct k_fifo			_pdu_tx_queue;
+
+	/** @internal Holds the remaining length of current sending buffer */
+	size_t				_pdu_remaining;
+
+	/** @internal Holds the sending buffer. */
+	struct net_buf		*_pdu_buf;
+
+	/** @internal TX windows for outstanding frame */
+	sys_slist_t			_pdu_outstanding;
+
+	/** @internal PDU restore state */
+	struct net_buf_simple_state _pdu_state;
+
+	/** @internal Free TX windows */
+	struct k_fifo		_free_tx_win;
+
+	/** @internal TX windows */
+	struct bt_l2cap_br_window tx_win[CONFIG_BT_L2CAP_MAX_WINDOW_SIZE];
+
+	/** Segment SDU packet from upper layer */
+	struct net_buf		*_sdu;
+	/** @internal RX SDU */
+	uint16_t			_sdu_len;
+#if defined(CONFIG_BT_L2CAP_SEG_RECV)
+	uint16_t			_sdu_len_done;
+#endif /* CONFIG_BT_L2CAP_SEG_RECV */
+
+
+	/** @internal variables and sequence numbers */
+	/** @internal The sending peer uses the following variables and sequence
+	 * numbers.
+	 */
+	/** @internal The send sequence number used to sequentially number each
+	 * new I-frame transmitted.
+	 */
+	uint16_t				tx_seq;
+	/** @internal The sequence number to be used in the next new I-frame
+	 * transmitted.
+	 */
+	uint16_t				next_tx_seq;
+	/** @internal The sequence number of the next I-frame expected to be
+	 * acknowledged by the receiving peer.
+	 */
+	uint16_t				expected_ack_seq;
+	/** @internal The receiving peer uses the following variables and sequence
+	 * numbers.
+	 */
+	/** @internal The sequence number sent in an acknowledgment frame to
+	 * request transmission of I-frame with TxSeq = ReqSeq and acknowledge
+	 * receipt of I-frames up to and including (ReqSeq-1).
+	 */
+	uint16_t				req_seq;
+	/** @internal The value of TxSeq expected in the next I-frame.
+	 */
+	uint16_t				expected_tx_seq;
+	/** @internal When segmented I-frames are buffered this is used to delay
+	 * acknowledgment of received I-frame so that new I-frame transmissions do
+	 * not cause buffer overflow.
+	 */
+	uint16_t				buffer_seq;
+
+	/** @internal States of Enhanced Retransmission Mode */
+	/** @internal Holds the number of times an S-frame operation is retried
+	 */
+	uint16_t				retry_count;
+	/** @internal save the ReqSeq of a SREJ frame */
+	uint16_t 				srej_save_req_seq;
+
+	/** @internal Retransmission Timer */
+	struct k_work_delayable		ret_work;
+	/** @internal Monitor Timer */
+	struct k_work_delayable		monitor_work;
 };
+
+#define BT_L2CAP_BR_LINK_MODE_BASIC  0x00
+#define BT_L2CAP_BR_LINK_MODE_RET    0x01
+#define BT_L2CAP_BR_LINK_MODE_FC     0x02
+#define BT_L2CAP_BR_LINK_MODE_ERET   0x03
+#define BT_L2CAP_BR_LINK_MODE_STREAM 0x04
+
+#define BT_L2CAP_BR_FCS_NO			 0x00
+#define BT_L2CAP_BR_FCS_16BIT		 0x01
+
+#define BT_L2CAP_RT_FC_SDU_LEN_SIZE 2
+
+#define BT_L2CAP_STD_CONTROL_SIZE 2
+#define BT_L2CAP_ENH_CONTROL_SIZE 2
+#define BT_L2CAP_EXT_CONTROL_SIZE 4
+
+#define BT_L2CAP_FCS_SIZE 2
+
+/**
+ *
+ *  @brief Helper to calculate L2CAP SDU header size.
+ *         Useful for creating buffer pools.
+ *
+ *  @param mtu Required BT_L2CAP_*_SDU.
+ *
+ *  @return Header size of the L2CAP channel.
+ */
+static inline size_t bt_l2cap_br_get_ret_fc_hdr_size(struct bt_l2cap_br_chan *chan)
+{
+	if (chan->tx.mode != BT_L2CAP_BR_LINK_MODE_BASIC) {
+		if (chan->tx.extended_control) {
+			return BT_L2CAP_EXT_CONTROL_SIZE + BT_L2CAP_RT_FC_SDU_LEN_SIZE;
+		} else {
+			return BT_L2CAP_STD_CONTROL_SIZE + BT_L2CAP_RT_FC_SDU_LEN_SIZE;
+		}
+	}
+
+	return 0;
+}
+
+static inline size_t bt_l2cap_br_get_ret_fc_tail_size(struct bt_l2cap_br_chan *chan)
+{
+	if (chan->tx.mode != BT_L2CAP_BR_LINK_MODE_BASIC) {
+		if (chan->tx.fcs == BT_L2CAP_BR_FCS_16BIT) {
+			return BT_L2CAP_FCS_SIZE;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ *
+ *  @brief Helper to calculate L2CAP SDU header size.
+ *         Useful for creating buffer pools.
+ *
+ *  @param chan the BR channel object point to `struct bt_l2cap_br_chan`.
+ *
+ *  @return Header size of the L2CAP channel.
+ */
+#define BT_L2CAP_RT_FC_SDU_HDR_SIZE(chan) bt_l2cap_br_get_ret_fc_hdr_size(chan)
+
+/**
+ *
+ *  @brief Helper to calculate L2CAP SDU tail size.
+ *         Useful for creating buffer pools.
+ *
+ *  @param chan the BR channel object point to `struct bt_l2cap_br_chan`.
+ *
+ *  @return Header size of the L2CAP channel.
+ */
+#define BT_L2CAP_RT_FC_SDU_TAIL_SIZE(chan) bt_l2cap_br_get_ret_fc_tail_size(chan)
+
+/**
+ *
+ *  @brief Helper to calculate needed buffer size for L2CAP SDUs.
+ *         Useful for creating buffer pools.
+ *
+ *  @param chan the BR channel object point to `struct bt_l2cap_br_chan`.
+ *  @param mtu Required BT_L2CAP_*_SDU.
+ *
+ *  @return Needed buffer size to match the requested L2CAP SDU MTU.
+ */
+#define BT_L2CAP_RT_FC_SDU_BUF_SIZE(chan, mtu)                              \
+	(BT_L2CAP_BUF_SIZE(BT_L2CAP_RT_FC_SDU_HDR_SIZE((chan)) + (mtu) +        \
+			   BT_L2CAP_RT_FC_SDU_TAIL_SIZE((chan))))
+
+/**
+ *
+ *  @brief Helper to calculate needed buffer size for L2CAP SDUs.
+ *         Useful for creating buffer pools.
+ *
+ *  @param mtu Required BT_L2CAP_*_SDU.
+ *
+ *  @return Needed buffer size to match the requested L2CAP SDU MTU.
+ */
+#define BT_L2CAP_RT_FC_MAX_SDU_BUF_SIZE(mtu)                                              \
+	BT_L2CAP_BUF_SIZE((mtu) + BT_L2CAP_EXT_CONTROL_SIZE + BT_L2CAP_RT_FC_SDU_LEN_SIZE +   \
+			  BT_L2CAP_FCS_SIZE)
 
 /** @brief L2CAP Channel operations structure. */
 struct bt_l2cap_chan_ops {
@@ -433,6 +641,15 @@ struct bt_l2cap_chan_ops {
 #define BT_L2CAP_CHAN_SEND_RESERVE (BT_L2CAP_BUF_SIZE(0))
 
 /**
+ *  @brief Headroom needed for outgoing L2CAP PDUs if channel in one of
+ *  following mode, including retransmission, flow control, enhance
+ *  retransmission, and streaming.
+ *
+ *  @param chan the BR channel object point to `struct bt_l2cap_br_chan`.
+ */
+#define BT_L2CAP_RET_FC_SDU_CHAN_SEND_RESERVE(chan) (BT_L2CAP_RT_FC_SDU_HDR_SIZE(chan))
+
+/**
  * @brief Headroom needed for outgoing L2CAP SDUs.
  */
 #define BT_L2CAP_SDU_CHAN_SEND_RESERVE (BT_L2CAP_SDU_BUF_SIZE(0))
@@ -584,7 +801,11 @@ int bt_l2cap_chan_disconnect(struct bt_l2cap_chan *chan);
  *
  *  When sending L2CAP data over an BR/EDR connection the application is sending
  *  L2CAP PDUs. The application is required to have reserved
- *  @ref BT_L2CAP_CHAN_SEND_RESERVE bytes in the buffer before sending.
+ *  @ref BT_L2CAP_CHAN_SEND_RESERVE or
+ *  @ref BT_L2CAP_RET_FC_SDU_CHAN_SEND_RESERVE bytes in the buffer before
+ *  sending. @ref BT_L2CAP_CHAN_SEND_RESERVE is used for basic mode.
+ *  @ref BT_L2CAP_RET_FC_SDU_CHAN_SEND_RESERVE is used for other modes.
+ *
  *  The application should use the BT_L2CAP_BUF_SIZE() helper to correctly
  *  size the buffers for the for the outgoing buffer pool.
  *
@@ -593,7 +814,10 @@ int bt_l2cap_chan_disconnect(struct bt_l2cap_chan *chan);
  *  @ref BT_L2CAP_SDU_CHAN_SEND_RESERVE bytes in the buffer before sending.
  *
  *  The application can use the BT_L2CAP_SDU_BUF_SIZE() helper to correctly size
- *  the buffer to account for the reserved headroom.
+ *  the buffer to account for the reserved headroom. If the channel is a L2CAP
+ *  BR/EDR channel, and the mode is not basic mode,
+ *  @ref BT_L2CAP_RT_FC_SDU_BUF_SIZE is used to helper to correctly size the
+ *  buffer.
  *
  *  When segmenting an L2CAP SDU into L2CAP PDUs the stack will first attempt to
  *  allocate buffers from the channel's `alloc_seg` callback and will fallback

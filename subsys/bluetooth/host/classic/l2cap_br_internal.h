@@ -139,11 +139,6 @@ struct bt_l2cap_conf_opt_qos {
 	uint32_t delay_variation;
 } __packed;
 
-#define BT_L2CAP_RET_FC_MODE_BASIC   0x00
-#define BT_L2CAP_RET_FC_MODE_RET     0x01
-#define BT_L2CAP_RET_FC_MODE_FC      0x02
-#define BT_L2CAP_RET_FC_MODE_ENH_RET 0x03
-#define BT_L2CAP_RET_FC_MODE_STREAM  0x04
 struct bt_l2cap_conf_opt_ret_fc {
 	uint8_t mode;
 	uint8_t tx_windows_size;
@@ -157,6 +152,19 @@ struct bt_l2cap_conf_opt_ret_fc {
 #define BT_L2CAP_FCS_TYPE_16BIT      0x01
 struct bt_l2cap_conf_opt_fcs {
 	uint8_t type;
+} __packed;
+
+struct bt_l2cap_conf_opt_ext_flow_spec {
+	uint8_t identifier;
+	uint8_t service_type;
+	uint16_t sdu;
+	uint32_t sdu_inter_arrival_time;
+	uint32_t access_latency;
+	uint32_t flush_timeout;
+} __packed;
+
+struct bt_l2cap_conf_opt_ext_win_size {
+	uint16_t max_windows_size;
 } __packed;
 
 #define BT_L2CAP_DISCONN_REQ            0x06
@@ -200,6 +208,87 @@ struct bt_l2cap_info_rsp {
 	uint16_t result;
 	uint8_t  data[0];
 } __packed;
+
+/* I Frame Standard Control Field Format definition */
+#define BT_L2CAP_I_FRAME_STD_CONTROL_GET_TYPE(control)    ((control) & 0x01)
+#define BT_L2CAP_I_FRAME_STD_CONTROL_GET_TX_SEQ(control)  (((control) >> 0x01) & 0x3f)
+#define BT_L2CAP_I_FRAME_STD_CONTROL_GET_R(control)       (((control) >> 0x07) & 0x01)
+#define BT_L2CAP_I_FRAME_STD_CONTROL_GET_REQ_SEQ(control) (((control) >> 0x08) & 0x3f)
+#define BT_L2CAP_I_FRAME_STD_CONTROL_GET_SAR(control)     (((control) >> 0x0e) & 0x03)
+
+#define BT_L2CAP_I_FRAME_STD_CONTROL_SET(tx_seq, r, req_seq, sar)                              \
+	((((tx_seq) & 0x3f) << 0x01) | (((r) & 0x01) << 0x07) | (((req_seq) & 0x3f) << 0x08) |     \
+	 (((sar) & 0x03) << 0x0e))
+
+/* I Frame Enhanced Control Field Format definition */
+#define BT_L2CAP_I_FRAME_ENH_CONTROL_GET_TYPE(control)    ((control) & 0x01)
+#define BT_L2CAP_I_FRAME_ENH_CONTROL_GET_TX_SEQ(control)  (((control) >> 0x01) & 0x3f)
+#define BT_L2CAP_I_FRAME_ENH_CONTROL_GET_F(control)       (((control) >> 0x07) & 0x01)
+#define BT_L2CAP_I_FRAME_ENH_CONTROL_GET_REQ_SEQ(control) (((control) >> 0x08) & 0x3f)
+#define BT_L2CAP_I_FRAME_ENH_CONTROL_GET_SAR(control)     (((control) >> 0x0e) & 0x03)
+
+#define BT_L2CAP_I_FRAME_ENH_CONTROL_SET(tx_seq, f, req_seq, sar)                              \
+	((((tx_seq) & 0x3f) << 0x01) | (((f) & 0x01) << 0x07) | (((req_seq) & 0x3f) << 0x08) |     \
+	 (((sar) & 0x03) << 0x0e))
+
+/* I Frame Extended Control Field Format definition */
+#define BT_L2CAP_I_FRAME_EXT_CONTROL_GET_TYPE(control)    ((control) & 0x01)
+#define BT_L2CAP_I_FRAME_EXT_CONTROL_GET_F(control)       (((control) >> 0x01) & 0x01)
+#define BT_L2CAP_I_FRAME_EXT_CONTROL_GET_REQ_SEQ(control) (((control) >> 0x02) & 0x3fff)
+#define BT_L2CAP_I_FRAME_EXT_CONTROL_GET_SAR(control)     (((control) >> 0x10) & 0x03)
+#define BT_L2CAP_I_FRAME_EXT_CONTROL_GET_TX_SEQ(control)  (((control) >> 0x12) & 0x3fff)
+
+#define BT_L2CAP_I_FRAME_EXT_CONTROL_SET(f, tx_seq, sar, req_seq)                              \
+	((((f) & 0x01) << 0x01) | (((req_seq) & 0x3fff) << 0x02) | (((sar) & 0x03) << 0x10) |      \
+	 (((tx_seq) & 0x3fff) << 0x12))
+
+/* S Frame Standard Control Field Format definition */
+#define BT_L2CAP_S_FRAME_STD_CONTROL_GET_TYPE(control)    ((control) & 0x01)
+#define BT_L2CAP_S_FRAME_STD_CONTROL_GET_S(control)       (((control) >> 0x02) & 0x03)
+#define BT_L2CAP_S_FRAME_STD_CONTROL_GET_R(control)       (((control) >> 0x07) & 0x01)
+#define BT_L2CAP_S_FRAME_STD_CONTROL_GET_REQ_SEQ(control) (((control) >> 0x08) & 0x3f)
+
+#define BT_L2CAP_S_FRAME_STD_CONTROL_SET(s, r, req_seq)                                        \
+	(((1) & 0x01) | (((s) & 0x03) << 0x02) | (((r) & 0x01) << 0x07) |                          \
+	 (((req_seq) & 0x3f) << 0x08))
+
+/* S Frame Enhanced Control Field Format definition */
+#define BT_L2CAP_S_FRAME_ENH_CONTROL_GET_TYPE(control)    ((control) & 0x01)
+#define BT_L2CAP_S_FRAME_ENH_CONTROL_GET_S(control)       (((control) >> 0x02) & 0x03)
+#define BT_L2CAP_S_FRAME_ENH_CONTROL_GET_P(control)       (((control) >> 0x04) & 0x01)
+#define BT_L2CAP_S_FRAME_ENH_CONTROL_GET_F(control)       (((control) >> 0x07) & 0x01)
+#define BT_L2CAP_S_FRAME_ENH_CONTROL_GET_REQ_SEQ(control) (((control) >> 0x08) & 0x3f)
+
+#define BT_L2CAP_S_FRAME_ENH_CONTROL_SET(s, p, f, req_seq)                                     \
+	(((1) & 0x01) | (((s) & 0x03) << 0x02) | (((p) & 0x01) << 0x04) | (((f) & 0x01) << 0x07) | \
+	 (((req_seq) & 0x3f) << 0x08))
+
+/* S Frame Extended Control Field Format definition */
+#define BT_L2CAP_S_FRAME_EXT_CONTROL_GET_TYPE(control)    ((control) & 0x01)
+#define BT_L2CAP_S_FRAME_EXT_CONTROL_GET_F(control)       (((control) >> 0x01) & 0x01)
+#define BT_L2CAP_S_FRAME_EXT_CONTROL_GET_REQ_SEQ(control) (((control) >> 0x02) & 0x3fff)
+#define BT_L2CAP_S_FRAME_EXT_CONTROL_GET_S(control)       (((control) >> 0x10) & 0x03)
+#define BT_L2CAP_S_FRAME_EXT_CONTROL_GET_P(control)       (((control) >> 0x12) & 0x01)
+
+#define BT_L2CAP_S_FRAME_EXT_CONTROL_SET(f, req_seq, s, p)                                     \
+	(((1) & 0x01) | (((f) & 0x01) << 0x01) | (((req_seq) & 0x3fff) << 0x02) |                  \
+	 (((s) & 0x03) << 0x10) | (((p) & 0x01) << 0x12))
+
+#define BT_L2CAP_CONTROL_TYPE_I 0x00
+#define BT_L2CAP_CONTROL_TYPE_S 0x01
+
+#define BT_L2CAP_CONTROL_SEQ_MAX     0x40
+#define BT_L2CAP_EXT_CONTROL_SEQ_MAX 0x4000
+
+#define BT_L2CAP_CONTROL_SAR_UNSEG 0x00
+#define BT_L2CAP_CONTROL_SAR_START 0x01
+#define BT_L2CAP_CONTROL_SAR_END   0x02
+#define BT_L2CAP_CONTROL_SAR_CONTI 0x03
+
+#define BT_L2CAP_CONTROL_S_RR   0x00
+#define BT_L2CAP_CONTROL_S_REJ  0x01
+#define BT_L2CAP_CONTROL_S_RNR  0x02
+#define BT_L2CAP_CONTROL_S_SREJ 0x03
 
 #define BR_CHAN(_ch) CONTAINER_OF(_ch, struct bt_l2cap_br_chan, chan)
 
