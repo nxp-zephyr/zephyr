@@ -13,6 +13,7 @@ config BT_CLASSIC
 	select BT_CENTRAL
 	select BT_SMP
 	select BT_L2CAP_DYNAMIC_CHANNEL
+	select CRC
 	select EXPERIMENTAL
 	help
 	  This option enables Bluetooth BR/EDR support
