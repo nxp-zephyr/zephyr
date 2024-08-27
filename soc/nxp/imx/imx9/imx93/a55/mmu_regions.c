@@ -97,6 +97,21 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_SIZE(DT_NODELABEL(gpio2)),
 			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
 #endif
+
+#ifdef CONFIG_COUNTER_MCUX_TPM
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(tpm2), disabled)
+	MMU_REGION_FLAT_ENTRY("TPM2", DT_REG_ADDR(DT_NODELABEL(tpm2)),
+			      DT_REG_SIZE(DT_NODELABEL(tpm2)),
+			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+#endif
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(tpm4), disabled)
+	MMU_REGION_FLAT_ENTRY("TPM4", DT_REG_ADDR(DT_NODELABEL(tpm4)),
+			      DT_REG_SIZE(DT_NODELABEL(tpm4)),
+			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+#endif
+#endif
+
 };
 
 const struct arm_mmu_config mmu_config = {
