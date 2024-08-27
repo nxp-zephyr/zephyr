@@ -123,6 +123,22 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      MT_DEVICE_nGnRE | MT_P_RW_U_RW | MT_NS),
 #endif
 
+#ifdef CONFIG_HAS_MCUX_GPT
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(gpt1), disabled)
+	MMU_REGION_FLAT_ENTRY("GPT1",
+			      DT_REG_ADDR(DT_NODELABEL(gpt1)),
+			      DT_REG_SIZE(DT_NODELABEL(gpt1)),
+			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+#endif
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(gpt2), disabled)
+	MMU_REGION_FLAT_ENTRY("GPT2",
+			      DT_REG_ADDR(DT_NODELABEL(gpt2)),
+			      DT_REG_SIZE(DT_NODELABEL(gpt2)),
+			      MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS),
+#endif
+#endif
+
 	MMU_REGION_DT_COMPAT_FOREACH_FLAT_ENTRY(nxp_imx_iuart,
 				  (MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS))
 };
