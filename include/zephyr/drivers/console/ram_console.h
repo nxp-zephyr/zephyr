@@ -22,7 +22,7 @@ struct ram_console_header {
 	char flag_string[12];
 	char *buf_addr;
 	size_t buf_size;
-	size_t pos;
+	uint32_t pos;
 };
 
 #ifdef __cplusplus

@@ -38,8 +38,12 @@ static struct ram_console_header *header;
 
 static int ram_console_out(int character)
 {
-	header->buf_addr[header->pos] = (char)character;
-	header->pos = (header->pos + 1) % header->buf_size;
+	header->buf_addr[header->pos % header->buf_size] = (char)character;
+	header->pos++;
+	/* Overflow */
+	if (header->pos == 0)
+		header->pos = (0xFFFFFFFF % header->buf_size) + 1;
+
 	return character;
 }
 
