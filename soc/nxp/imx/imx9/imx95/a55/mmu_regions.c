@@ -24,6 +24,12 @@ static const struct arm_mmu_region mmu_regions[] = {
 		MMU_REGION_DT_COMPAT_FOREACH_FLAT_ENTRY(nxp_kinetis_lpuart,
 							(MT_DEVICE_nGnRnE | MT_P_RW_U_NA | MT_NS))
 
+#ifdef CONFIG_HAS_MCUX_FLEXCAN
+	MMU_REGION_FLAT_ENTRY("FLEXCAN", DT_REG_ADDR(DT_INST(0, nxp_imx_flexcan)),
+			      DT_REG_SIZE(DT_INST(0, nxp_imx_flexcan)),
+			      MT_DEVICE_nGnRE | MT_P_RW_U_NA | MT_NS),
+#endif
+
 #ifdef CONFIG_COUNTER_MCUX_TPM
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(tpm2), disabled)
 	MMU_REGION_FLAT_ENTRY("TPM2",
