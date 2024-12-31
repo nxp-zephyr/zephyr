@@ -375,7 +375,7 @@
 		status = "disabled";
 	};
 
-	flexcan: flexcan@425b0000 {
+	flexcan2: flexcan@425b0000 {
 		compatible = "nxp,imx-flexcan";
 		reg = <0x425b0000 DT_SIZE_K(64)>;
 	};
