@@ -52,3 +52,8 @@
 	pinctrl-0 = <&lpuart1_default>;
 	pinctrl-names = "default";
 };
+
+&flexcan2 {
+	pinctrl-0 = <&flexcan2_default>;
+	pinctrl-names = "default";
+};
