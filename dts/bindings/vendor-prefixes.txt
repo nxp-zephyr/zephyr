@@ -449,6 +449,7 @@ murata	Murata Manufacturing Co., Ltd.
 mxchip	Shanghai MXCHIP Information Technology Co., Ltd.
 mxicy	Macronix International Co., Ltd.
 myir	MYIR Tech Limited
+motorcomm	Motorcomm Electronic Technology Co., Ltd.
 national	National Semiconductor
 nec	NEC LCD Technologies, Ltd.
 neonode	Neonode Inc.
