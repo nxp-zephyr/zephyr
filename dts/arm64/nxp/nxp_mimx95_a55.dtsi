@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 NXP
+ * Copyright 2024-2025 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -97,6 +97,12 @@
 
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			scmi_devpd: protocol@11 {
+				compatible = "arm,scmi-power";
+				reg = <0x11>;
+				#power-domain-cells = <1>;
+			};
 
 			scmi_clk: protocol@14 {
 				compatible = "arm,scmi-clock";
