@@ -74,7 +74,8 @@ static struct fw_resource_table __resource resource_table = {
 #if defined(CONFIG_RAM_CONSOLE)
 	.cm_trace = {
 		RSC_TRACE,
-		(uint32_t)ram_console_buf, CONFIG_RAM_CONSOLE_BUFFER_SIZE, 0,
+		0, /* Will be initialized at runtime */
+		CONFIG_RAM_CONSOLE_BUFFER_SIZE, 0,
 		"Zephyr_log",
 	},
 #endif
@@ -82,6 +83,10 @@ static struct fw_resource_table __resource resource_table = {
 
 void rsc_table_get(struct fw_resource_table **table_ptr, int *length)
 {
+#if defined(CONFIG_RAM_CONSOLE)
+	resource_table.cm_trace.da = (uint32_t)(uintptr_t)ram_console_buf;
+#endif
+
 	*length = sizeof(resource_table);
 #ifdef CONFIG_OPENAMP_COPY_RSC_TABLE
 	*table_ptr = (struct fw_resource_table *)RSC_TABLE_ADDR;
