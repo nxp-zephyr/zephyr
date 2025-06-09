@@ -43,7 +43,8 @@ extern "C" {
 	 (DT_PROP(node_id, bias_pull_down) << IOMUXC_BIAS_PULL_DOWN_SHIFT) |                       \
 	 (DT_PROP(node_id, bias_pull_up) << IOMUXC_BIAS_PULL_UP_SHIFT) |                           \
 	 (DT_ENUM_IDX(node_id, slew_rate) << IOMUXC_SLEW_RATE_SHIFT) |                             \
-	 ((~(0xff << DT_ENUM_IDX(node_id, drive_strength))) << IOMUXC_DRIVE_STRENGTH_SHIFT) |      \
+	 ((~(0xffffffff << DT_ENUM_IDX(node_id, drive_strength)))                                  \
+		<< IOMUXC_DRIVE_STRENGTH_SHIFT) |                                                  \
 	 (DT_PROP(node_id, input_enable) << IOMUXC_INPUT_ENABLE_SHIFT))
 
 /* This struct must be present. It is used by the mcux gpio driver */
