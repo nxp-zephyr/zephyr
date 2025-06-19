@@ -223,3 +223,5 @@
 		status = "disabled";
 	};
 };
+
+display_i2c: &lpi2c1 {};

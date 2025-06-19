@@ -19,6 +19,7 @@ supported:
   - spi
   - can
   - net
+  - display
 testing:
   ignore_tags:
     - bluetooth
