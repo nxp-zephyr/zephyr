@@ -1,0 +1,50 @@
+#
+# Copyright 2025 NXP
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+description: DWC MIPI CSI-2 Rx interface
+
+compatible: "nxp,dwc-mipi-csi2rx"
+
+include: [base.yaml]
+
+properties:
+  gasket:
+    required: true
+    type: phandle
+    description: gasket
+
+  data-lanes:
+    required: true
+    type: int
+    description: Data lane numbers
+
+  cfg-clk-range:
+    required: true
+    type: int
+    description: MIPI D-PHY configure clock range
+
+  hs-clk-range:
+    required: true
+    type: int
+    description: MIPI D-PHY high-speed frequency range
+
+  cam-pix-clk-rate:
+    required: true
+    type: int
+
+  mipi-phy-cfg-clk-rate:
+    required: true
+    type: int
+
+child-binding:
+  child-binding:
+    include: video-interfaces.yaml
+    properties:
+      reg:
+        type: int
+        enum:
+          - 0 # for input endpoint
+          - 1 # for output endpoint

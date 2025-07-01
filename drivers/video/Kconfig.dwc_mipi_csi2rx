@@ -1,0 +1,11 @@
+# DWC MIPI CSI-2 Rx driver configuration option
+
+# Copyright 2025 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+config VIDEO_DWC_MIPI_CSI2RX
+	bool "DWC MIPI CSI-2 Rx driver"
+	default y
+	depends on DT_HAS_NXP_DWC_MIPI_CSI2RX_ENABLED
+	select VIDEO_MCUX_ISI
+	select INIT_VIDEO_PLL

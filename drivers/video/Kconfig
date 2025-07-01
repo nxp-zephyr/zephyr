@@ -58,6 +58,8 @@ source "drivers/video/Kconfig.mcux_isi"
 
 source "drivers/video/Kconfig.mcux_mipi_csi2rx"
 
+source "drivers/video/Kconfig.dwc_mipi_csi2rx"
+
 source "drivers/video/Kconfig.sw_generator"
 
 source "drivers/video/Kconfig.mt9m114"
