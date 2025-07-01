@@ -1,0 +1,19 @@
+# AP1302
+
+# Copyright 2025 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+config VIDEO_AP1302
+	bool "AP1302 advanced image coprocessor for onsemi's sensor"
+	select I2C
+	depends on REGULATOR
+	depends on DT_HAS_ONNN_AP1302_ENABLED
+	default y
+	help
+	  Enable driver for AP1302 which is an advanced image coprocessor for onsemi's sensor
+
+if VIDEO_AP1302
+config VIDEO_AP1302_INIT_PRIORITY
+	int "AP1302 initialization priority"
+	default 60
+endif

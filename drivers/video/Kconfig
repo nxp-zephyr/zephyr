@@ -76,6 +76,8 @@ source "drivers/video/Kconfig.ov7670"
 
 source "drivers/video/Kconfig.gc2145"
 
+source "drivers/video/Kconfig.ap1302"
+
 source "drivers/video/Kconfig.mcux_sdma"
 
 source "drivers/video/Kconfig.emul_imager"
