@@ -270,6 +270,13 @@ SECTIONS
     __data_region_end = .;
     __data_region_load_start = LOADADDR(_DATA_SECTION_NAME);
 
+#ifdef CONFIG_OPENAMP_RSC_TABLE
+    SECTION_PROLOGUE(.resource_table,, SUBALIGN(8))
+    {
+        KEEP(*(.resource_table*))
+    } GROUP_ROM_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
+#endif
+
     SECTION_DATA_PROLOGUE(_BSS_SECTION_NAME,(NOLOAD), BSS_ALIGN)
     {
         . = ALIGN(8);
