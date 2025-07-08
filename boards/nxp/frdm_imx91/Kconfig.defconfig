@@ -1,0 +1,10 @@
+if BOARD_FRDM_IMX91
+
+if IMX_USDHC
+
+config GPIO
+	default y
+
+endif # IMX_USDHC
+
+endif # BOARD_FRDM_IMX93
