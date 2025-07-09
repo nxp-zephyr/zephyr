@@ -58,8 +58,14 @@ static const char *disk_pdrv = DISK_NAME;
 static uint32_t disk_sector_count;
 static uint32_t disk_sector_size;
 
+/* Ensure both buffers are cache line aligned and have redundancy bytes. */
+#if defined(CONFIG_DISK_DRIVER_SDMMC) || defined(CONFIG_DISK_DRIVER_MMC)
+static uint8_t __aligned(L1_CACHE_BYTES)
+	scratch_buf[2][SECTOR_COUNT4 * SECTOR_SIZE + L1_CACHE_BYTES];
+#else
 /* + 4 to make sure the second buffer is dword-aligned for NVME */
 static uint8_t scratch_buf[2][SECTOR_COUNT4 * SECTOR_SIZE + 4];
+#endif
 
 #ifdef CONFIG_DISK_DRIVER_LOOPBACK
 #define BACKING_PATH "/"DISK_NAME_PHYS":"
