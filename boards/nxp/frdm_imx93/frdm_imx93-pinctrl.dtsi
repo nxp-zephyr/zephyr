@@ -51,8 +51,8 @@
 
 	i2c3_default: i2c3_default {
 		group0 {
-			pinmux = <&iomuxc1_gpio_io01_lpi2c_scl_lpi2c3_scl>,
-				<&iomuxc1_gpio_io00_lpi2c_sda_lpi2c3_sda>;
+			pinmux = <&iomuxc1_gpio_io29_lpi2c_scl_lpi2c3_scl>,
+				<&iomuxc1_gpio_io28_lpi2c_sda_lpi2c3_sda>;
 			drive-strength = "x5";
 			drive-open-drain;
 			slew-rate = "fast";
