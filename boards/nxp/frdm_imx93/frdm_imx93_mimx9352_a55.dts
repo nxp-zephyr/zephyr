@@ -225,3 +225,9 @@
 };
 
 display_i2c: &lpi2c1 {};
+
+nxp_cam_i2c: &lpi2c3 {};
+
+nxp_mipi_csi: &mipi_csi {};
+
+nxp_isi: &isi {};

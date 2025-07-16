@@ -1,0 +1,31 @@
+# Copyright 2025 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+if SHIELD_NXP_RPI_CAM_MIPI_AP1302
+
+if VIDEO
+
+config GPIO
+	default y
+
+config REGULATOR
+	default y
+
+config MFD_ADP5585_INIT_PRIORITY
+	default 55
+
+config GPIO_ADP5585_INIT_PRIORITY
+	default 56
+
+config GPIO_PCA_SERIES_INIT_PRIORITY
+	default 60
+
+config REGULATOR_FIXED_INIT_PRIORITY
+	default 75
+
+config VIDEO_AP1302_INIT_PRIORITY
+	default 80
+
+endif # VIDEO
+
+endif # SHIELD_NXP_RPI_CAM_MIPI_AP1302

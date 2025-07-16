@@ -1,0 +1,151 @@
+/*
+ * Copyright 2025 NXP
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/dt-bindings/video/video-interfaces.h>
+
+/ {
+	chosen {
+		zephyr,camera = &nxp_isi;
+		zephyr,sensor_fw = &ap1302_fw;
+	};
+
+	ap1302_fw: memory@e1000000 {
+		reg = <0xe1000000 DT_SIZE_K(128)>;
+	};
+
+	reg_dvdd_sel: regulator-dvdd_sel {
+		compatible = "regulator-fixed";
+		regulator-name = "DVDD_SEL";
+		enable-gpios = <&adp5585gpio_isp 0 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_dvdd_1v2: regulator-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "DVDD_1V2";
+		enable-gpios = <&adp5585gpio_isp 9 GPIO_ACTIVE_HIGH>;
+	};
+
+	reg_vdd_3v3: regulator-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_3V3";
+		enable-gpios = <&adp5585gpio_isp 8 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <4000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_vddio_1v8: regulator-vddo {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_1V8";
+		enable-gpios = <&adp5585gpio_isp 12 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <4000>;
+	};
+
+	reg_vaa_sel: regulator-vaa_sel {
+		compatible = "regulator-fixed";
+		regulator-name = "VAA_SEL";
+		enable-gpios = <&adp5585gpio_isp 1 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_avdd_2v8: regulator-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "AVDD_2V8";
+		enable-gpios = <&adp5585gpio_isp 10 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&dram {
+	reg = <0xd0000000 DT_SIZE_M(256)>;
+};
+
+&nxp_cam_i2c {
+	clock-frequency = <I2C_BITRATE_FAST>;
+	pinctrl-0 = <&i2c3_default>;
+	pinctrl-names = "default";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_FAST>;
+
+	mfd1:adp5585@34 {
+		compatible = "adi,adp5585";
+		reg = <0x34>;
+		status = "okay";
+
+		adp5585gpio_isp: adp5585_gpio {
+			compatible = "adi,adp5585-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <13>;
+			gpio-reserved-ranges = <5 3>;
+			status = "okay";
+		};
+	};
+
+	ap1302: ap1302_mipi@3c {
+		compatible = "onnn,ap1302";
+		reg = <0x3c>;
+		reset-gpios   = <&gpio_exp0 22 GPIO_ACTIVE_LOW>;
+		isp_en-gpios  = <&adp5585gpio_isp 2 GPIO_ACTIVE_HIGH>;
+		regulators    = <&reg_dvdd_sel>,
+				<&reg_dvdd_1v2>,
+				<&reg_vdd_3v3>,
+				<&reg_vddio_1v8>,
+				<&reg_vaa_sel>,
+				<&reg_avdd_2v8>;
+		status = "okay";
+
+		port {
+			ap1302_ep_out: endpoint {
+				remote-endpoint-label = "dwc_mipi_csi2rx_ep_in";
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&media_blk_ctrl {
+	status = "okay";
+};
+
+&nxp_mipi_csi {
+	data-lanes = <2>;
+	cfg-clk-range = <28>;
+	hs-clk-range = <0x2b>;
+	cam-pix-clk-rate = <140000000>;
+	mipi-phy-cfg-clk-rate = <24000000>;
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dwc_mipi_csi2rx_ep_in: endpoint@0 {
+			reg = <0x0>;
+			remote-endpoint-label = "ap1302_ep_out";
+		};
+
+		dwc_mipi_csi2rx_ep_out: endpoint@1 {
+			reg = <0x1>;
+			remote-endpoint-label = "isi_ep_in";
+		};
+	};
+};
+
+&nxp_isi {
+	media-axi-clk-rate = <400000000>;
+	media-apb-clk-rate = <133333334>;
+	status = "okay";
+
+	port {
+		isi_ep_in: endpoint {
+			remote-endpoint-label = "dwc_mipi_csi2rx_ep_out";
+		};
+	};
+};
