@@ -122,6 +122,15 @@
 		status = "disabled";
 	};
 
+	mipi_csi: csi@4ae00000 {
+		compatible = "nxp,dwc-mipi-csi2rx";
+		reg = <0x4ae00000 DT_SIZE_K(64)>;
+		clocks = <&ccm IMX_CCM_CAM_PIX_CLK 0 0>,
+			 <&ccm IMX_CCM_MIPI_PHY_CFG_CLK 0 0>;
+		gasket = <&media_blk_ctrl>;
+		status = "disabled";
+	};
+
 	gpio1: gpio@47400000 {
 		compatible = "nxp,imx-rgpio";
 		reg = <0x47400000 DT_SIZE_K(64)>;
