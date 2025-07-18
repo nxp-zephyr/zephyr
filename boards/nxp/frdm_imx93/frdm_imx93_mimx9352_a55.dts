@@ -20,6 +20,7 @@
 		/* sram node actually locates at DDR DRAM */
 		zephyr,sram = &dram;
 		zephyr,canbus = &flexcan2;
+		zephyr,usb-device = &usb1;
 	};
 
 	cpus {
@@ -225,6 +226,10 @@
 };
 
 display_i2c: &lpi2c1 {};
+
+zephyr_udc0: &usb1 {
+	status = "okay";
+};
 
 nxp_cam_i2c: &lpi2c3 {};
 
