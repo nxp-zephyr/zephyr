@@ -592,6 +592,7 @@ static int video_mcux_isi_get_caps(const struct device *dev, enum video_endpoint
 		caps->format_caps = isi_fmts;
 		/* ISI request at least 3 buffers before starting */
 		caps->min_vbuf_count = 3;
+		caps->min_line_count = caps->max_line_count = LINE_COUNT_HEIGHT;
 		break;
 	case VIDEO_EP_IN:
 		ep = VIDEO_EP_OUT;
