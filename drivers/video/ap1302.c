@@ -101,6 +101,12 @@ static const struct ap1302_mode_config ap1302_modes[] = {
 		.def_frmrate = AP1302_60_FPS,
 	},
 	{
+		.width = 1024,
+		.height = 600,
+		.max_frmrate = AP1302_60_FPS,
+		.def_frmrate = AP1302_60_FPS,
+	},
+	{
 		.width = 1280,
 		.height = 720,
 		.max_frmrate = AP1302_60_FPS,
@@ -129,6 +135,7 @@ static const int ap1302_frame_rates[] = {AP1302_15_FPS, AP1302_30_FPS, AP1302_45
 
 static const struct video_format_cap ap1302_fmts[] = {
 	AP1302_VIDEO_FORMAT_CAP(640, 480, VIDEO_PIX_FMT_UYVY),
+	AP1302_VIDEO_FORMAT_CAP(1024, 600, VIDEO_PIX_FMT_UYVY),
 	AP1302_VIDEO_FORMAT_CAP(1280, 720, VIDEO_PIX_FMT_UYVY),
 	AP1302_VIDEO_FORMAT_CAP(1280, 800, VIDEO_PIX_FMT_UYVY),
 	AP1302_VIDEO_FORMAT_CAP(1920, 1080, VIDEO_PIX_FMT_UYVY),
