@@ -747,6 +747,23 @@ static int video_mcux_isi_init_0(const struct device *dev)
 	k_fifo_init(&data->fifo_out);
 
 	ISI_GetDefaultConfig(&data->isi_config);
+	data->isi_config.inputWidth = 1280;
+	data->isi_config.inputHeight = 800;
+	data->isi_config.outputFormat = kISI_OutputYUV422_1P8P;
+
+	data->src_fmt.width = data->isi_config.inputWidth;
+	data->src_fmt.height = data->isi_config.inputWidth;
+	data->src_fmt.pixelformat = VIDEO_PIX_FMT_UYVY;
+	data->src_fmt.pitch = data->src_fmt.width *
+			      video_bits_per_pixel(data->src_fmt.pixelformat) /
+			      BITS_PER_BYTE;
+
+	data->dst_fmt.width = data->isi_config.inputWidth;
+	data->dst_fmt.height = data->isi_config.inputHeight;
+	data->dst_fmt.pixelformat = VIDEO_PIX_FMT_YUYV;
+	data->dst_fmt.pitch = data->dst_fmt.width *
+			      video_bits_per_pixel(data->dst_fmt.pixelformat) /
+			      BITS_PER_BYTE;
 
 	data->is_transfer_started = false;
 	data->buffer_index = 0;
