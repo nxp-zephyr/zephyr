@@ -1,5 +1,5 @@
 /*
- * Copyright 2021,2023-2025 NXP Semiconductor INC.
+ * Copyright 2021,2023-2025 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
