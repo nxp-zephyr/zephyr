@@ -11,16 +11,15 @@
 #include <zephyr/drivers/video.h>
 #include <zephyr/drivers/video-controls.h>
 
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(main);
-
 #ifdef CONFIG_TEST
 #include "check_test_pattern.h"
 
 #define LOG_LEVEL LOG_LEVEL_DBG
 #else
-#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
+#define LOG_LEVEL CONFIG_VIDEO_LOG_LEVEL
 #endif
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(main, LOG_LEVEL);
 
 #define VIDEO_DEV_SW "VIDEO_SW_GENERATOR"
 
