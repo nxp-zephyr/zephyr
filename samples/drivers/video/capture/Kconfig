@@ -27,6 +27,22 @@ config VIDEO_CTRL_HFLIP
 	help
 	  If set, mirror the video frame horizontally
 
+config VIDEO_CAMERA_HEIGHT
+	int "Height of the camera frame"
+	default 0
+	help
+	  Height of the camera frame. If set to 0, the default height is used.
+
+config VIDEO_CAMERA_WIDTH
+	int "Height of the camera frame"
+	default 0
+	help
+	  Width of the camera frame. If set to 0, the default width is used.
+
+config VIDEO_CAMERA_PIXEL_FORMAT
+	string "Pixel format of the camera frame"
+	help
+	  Pixel format of the camera frame. If not set, the default pixel format is used.
 endmenu
 
 source "Kconfig.zephyr"

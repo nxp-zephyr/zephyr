@@ -52,6 +52,11 @@ static inline int display_setup(const struct device *const display_dev, const ui
 			ret = display_set_pixel_format(display_dev, PIXEL_FORMAT_ARGB_8888);
 		}
 		break;
+	case VIDEO_PIX_FMT_ABGR32:
+		if (capabilities.current_pixel_format != PIXEL_FORMAT_ARGB_8888) {
+			ret = display_set_pixel_format(display_dev, PIXEL_FORMAT_ARGB_8888);
+		}
+		break;
 	default:
 		return -ENOTSUP;
 	}
@@ -83,6 +88,9 @@ int main(void)
 {
 	struct video_buffer *buffers[CONFIG_VIDEO_BUFFER_POOL_NUM_MAX], *vbuf;
 	struct video_format fmt;
+#if CONFIG_DT_HAS_NXP_IMX_ISI_ENABLED
+	struct video_format camera_fmt;
+#endif
 	struct video_caps caps;
 	struct video_frmival frmival;
 	struct video_frmival_enum fie;
@@ -109,13 +117,34 @@ int main(void)
 
 	LOG_INF("Video device: %s", video_dev->name);
 
-	/* Get capabilities */
+#if CONFIG_DT_HAS_NXP_IMX_ISI_ENABLED
+	/* Get capabilities for input endpoint */
+	if (video_get_caps(video_dev, VIDEO_EP_IN, &caps)) {
+		LOG_ERR("Unable to retrieve video capabilities");
+		return 0;
+	}
+
+	LOG_INF("- Input Capabilities:");
+	while (caps.format_caps[i].pixelformat) {
+		const struct video_format_cap *fcap = &caps.format_caps[i];
+		/* fourcc to string */
+		LOG_INF("  %c%c%c%c width [%u; %u; %u] height [%u; %u; %u]",
+		       (char)fcap->pixelformat, (char)(fcap->pixelformat >> 8),
+		       (char)(fcap->pixelformat >> 16), (char)(fcap->pixelformat >> 24),
+		       fcap->width_min, fcap->width_max, fcap->width_step, fcap->height_min,
+		       fcap->height_max, fcap->height_step);
+		i++;
+	}
+	i = 0;
+#endif
+
+	/* Get capabilities for output endpoint */
 	if (video_get_caps(video_dev, VIDEO_EP_OUT, &caps)) {
 		LOG_ERR("Unable to retrieve video capabilities");
 		return 0;
 	}
 
-	LOG_INF("- Capabilities:");
+	LOG_INF("- Output Capabilities:");
 	while (caps.format_caps[i].pixelformat) {
 		const struct video_format_cap *fcap = &caps.format_caps[i];
 		/* fourcc to string */
@@ -127,26 +156,57 @@ int main(void)
 		i++;
 	}
 
-	/* Get default/native format */
+#if CONFIG_DT_HAS_NXP_IMX_ISI_ENABLED
+	/* Get default/native format for input endpoint */
+	if (video_get_format(video_dev, VIDEO_EP_IN, &camera_fmt)) {
+		LOG_ERR("Unable to retrieve video format");
+		return 0;
+	}
+
+	if (strcmp(CONFIG_VIDEO_CAMERA_PIXEL_FORMAT, "")) {
+		camera_fmt.pixelformat = VIDEO_FOURCC_FROM_STR(CONFIG_VIDEO_CAMERA_PIXEL_FORMAT);
+	}
+
+#if CONFIG_VIDEO_CAMERA_WIDTH
+	camera_fmt.width = CONFIG_VIDEO_CAMERA_WIDTH;
+	camera_fmt.pitch = fmt.width * video_bits_per_pixel(fmt.pixelformat) / BITS_PER_BYTE;
+#endif
+
+#if CONFIG_VIDEO_CAMERA_HEIGHT
+	camera_fmt.height = CONFIG_VIDEO_CAMERA_HEIGHT;
+#endif
+
+	LOG_INF("- Input Video format: %c%c%c%c %ux%u", (char)camera_fmt.pixelformat,
+	       (char)(camera_fmt.pixelformat >> 8), (char)(camera_fmt.pixelformat >> 16),
+	       (char)(camera_fmt.pixelformat >> 24), camera_fmt.width, camera_fmt.height);
+
+	/* Set format for input endpoint */
+	if (video_set_format(video_dev, VIDEO_EP_IN, &camera_fmt)) {
+		LOG_ERR("Unable to set format for the camera");
+		return 0;
+	}
+#endif
+
+	/* Get default/native format for output endpoint */
 	if (video_get_format(video_dev, VIDEO_EP_OUT, &fmt)) {
 		LOG_ERR("Unable to retrieve video format");
 		return 0;
 	}
 
-#if CONFIG_VIDEO_FRAME_HEIGHT
-	fmt.height = CONFIG_VIDEO_FRAME_HEIGHT;
-#endif
-
-#if CONFIG_VIDEO_FRAME_WIDTH
-	fmt.width = CONFIG_VIDEO_FRAME_WIDTH;
-	fmt.pitch = fmt.width * 2;
-#endif
-
 	if (strcmp(CONFIG_VIDEO_PIXEL_FORMAT, "")) {
 		fmt.pixelformat = VIDEO_FOURCC_FROM_STR(CONFIG_VIDEO_PIXEL_FORMAT);
 	}
 
-	LOG_INF("- Video format: %c%c%c%c %ux%u", (char)fmt.pixelformat,
+#if CONFIG_VIDEO_FRAME_WIDTH
+	fmt.width = CONFIG_VIDEO_FRAME_WIDTH;
+	fmt.pitch = fmt.width * video_bits_per_pixel(fmt.pixelformat) / BITS_PER_BYTE;
+#endif
+
+#if CONFIG_VIDEO_FRAME_HEIGHT
+	fmt.height = CONFIG_VIDEO_FRAME_HEIGHT;
+#endif
+
+	LOG_INF("- Output Video format: %c%c%c%c %ux%u", (char)fmt.pixelformat,
 	       (char)(fmt.pixelformat >> 8), (char)(fmt.pixelformat >> 16),
 	       (char)(fmt.pixelformat >> 24), fmt.width, fmt.height);
 
@@ -162,7 +222,11 @@ int main(void)
 
 	LOG_INF("- Supported frame intervals for the default format:");
 	memset(&fie, 0, sizeof(fie));
+#if CONFIG_DT_HAS_NXP_IMX_ISI_ENABLED
+	fie.format = &camera_fmt;
+#else
 	fie.format = &fmt;
+#endif
 	while (video_enum_frmival(video_dev, VIDEO_EP_OUT, &fie) == 0) {
 		if (fie.type == VIDEO_FRMIVAL_TYPE_DISCRETE) {
 			LOG_INF("   %u/%u ", fie.discrete.numerator, fie.discrete.denominator);

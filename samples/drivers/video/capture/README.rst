@@ -24,6 +24,11 @@ Supported camera modules on some i.MX RT boards can be found below.
 - :zephyr:board:`mimxrt1170_evk`
 - `OV5640 camera module`_
 
+Supported camera modules on i.MX93 FRDM board can be found below.
+
+- :zephyr:board:`frdm_imx93`
+- `RPI-CAM-MIPI AP1302 camera module`_
+
 Also :ref:`arduino_nicla_vision_board` can be used in this sample as capture device, in that case
 The user can transfer the captured frames through on board USB.
 
@@ -37,6 +42,10 @@ USB debug connector (J41) in order to get console output via the freelink interf
 On :zephyr:board:`mimxrt1170_evk`, the OV5640 camera module should be plugged into the
 J2 camera connector. A USB cable should be connected from a host to the micro
 USB debug connector (J11) in order to get console output via the daplink interface.
+
+On :zephyr:board:`frdm_imx93`, the AP1302 camera module should be plugged into the
+MIPI-CSI camera connector (P6). A USB cable should be connected from a host to the
+USB Type C Debug connector (P16) in order to get console output.
 
 For :ref:`arduino_nicla_vision_board` there is no extra wiring required.
 
@@ -61,6 +70,15 @@ For :zephyr:board:`mimxrt1170_evk`, build this sample application with the follo
    :goals: build
    :compact:
 
+For :zephyr:board:`frdm_imx93`, build this sample application with the following commands:
+
+.. zephyr-app-commands::
+   :zephyr-app: samples/drivers/video/capture
+   :board: frdm_imx93/mimx9352/a55
+   :shield: nxp_rpi_cam_mipi_ap1302
+   :goals: build
+   :compact:
+
 For :ref:`arduino_nicla_vision_board`, build this sample application with the following commands:
 
 .. zephyr-app-commands::
@@ -73,8 +91,8 @@ For testing purpose without the need of any real video capture and/or display ha
 a video software pattern generator is supported by the above build commands without
 specifying the shields.
 
-Sample Output
-=============
+Sample Output for CSI Bridge
+============================
 
 .. code-block:: console
 
@@ -104,6 +122,44 @@ Sample Output
 
    <repeats endlessly>
 
+Sample Output for ISI
+=====================
+
+.. code-block:: console
+
+    Video device: isi@4ae40000
+    - Input Capabilities:
+    UYVY width [640; 640; 0] height [480; 480; 0]
+    UYVY width [1024; 1024; 0] height [600; 600; 0]
+    UYVY width [1280; 1280; 0] height [720; 720; 0]
+    UYVY width [1280; 1280; 0] height [800; 800; 0]
+    UYVY width [1920; 1920; 0] height [1080; 1080; 0]
+    - Output Capabilities:
+    RGBP width [1; 2048; 1] height [1; 8191; 1]
+    AR24 width [1; 2048; 1] height [1; 8191; 1]
+    YUYV width [1; 2048; 1] height [1; 8191; 1]
+    RGGB width [1; 8191; 1] height [1; 8191; 1]
+    RG10 width [1; 8191; 1] height [1; 8191; 1]
+    RG12 width [1; 8191; 1] height [1; 8191; 1]
+    GREY width [1; 8191; 1] height [1; 8191; 1]
+    - Input Video format: UYVY 1024x600
+    - Output Video format: AR24 1024x600
+
+    Display device: display-controller@4ae30000
+    - Capabilities:
+      x_resolution = 1024, y_resolution = 600, supported_pixel_formats = 8
+      current_pixel_format = 8, current_orientation = 0
+
+    Capture started
+    Got frame 1! size: 2457600; timestamp 2415 ms
+    Got frame 2! size: 2457600; timestamp 2432 ms
+    Got frame 3! size: 2457600; timestamp 2448 ms
+    Got frame 4! size: 2457600; timestamp 2465 ms
+    Got frame 5! size: 2457600; timestamp 2482 ms
+    Got frame 6! size: 2457600; timestamp 2498 ms
+
+   <repeats endlessly>
+
 References
 **********
 
@@ -112,3 +168,4 @@ References
 .. _Camera iMXRT: https://community.nxp.com/t5/i-MX-RT-Knowledge-Base/Connecting-camera-and-LCD-to-i-MX-RT-EVKs/ta-p/1122183
 .. _MT9M114 camera module: https://www.onsemi.com/PowerSolutions/product.do?id=MT9M114
 .. _OV5640 camera module: https://cdn.sparkfun.com/datasheets/Sensors/LightImaging/OV5640_datasheet.pdf
+.. _AP1302 camera module: https://www.nxp.com/design/design-center/development-boards-and-designs/ias-camera-to-rpi-camera-adapter:RPI-CAM-MIPI
