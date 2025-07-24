@@ -9,10 +9,9 @@
 / {
 	chosen {
 		zephyr,camera = &nxp_isi;
-		zephyr,sensor_fw = &ap1302_fw;
 	};
 
-	ap1302_fw: memory@e1000000 {
+	ap1302_fw_mem: memory@e1000000 {
 		reg = <0xe1000000 DT_SIZE_K(128)>;
 	};
 
@@ -99,6 +98,7 @@
 				<&reg_vddio_1v8>,
 				<&reg_vaa_sel>,
 				<&reg_avdd_2v8>;
+		firmware = <&ap1302_fw_mem>;
 		status = "okay";
 
 		port {

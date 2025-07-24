@@ -9,19 +9,26 @@ include: [i2c-device.yaml, pinctrl-device.yaml]
 
 properties:
   regulators:
+    required: true
     type: phandles
+
   isp_en-gpios:
     required: true
     type: phandle-array
     description: |
       This pin is asserted to enable AP1302. Driver will
       initialize this GPIO to active high.
+
   reset-gpios:
     required: true
     type: phandle-array
     description: |
       The RESETB pin is asserted to cause a hard reset. The AP1302
       receives this as an active-low signal.
+
+  firmware:
+    required: true
+    type: phandles
 
 child-binding:
   child-binding:

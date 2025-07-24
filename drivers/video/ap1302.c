@@ -18,15 +18,6 @@
 
 LOG_MODULE_REGISTER(video_ap1302, CONFIG_VIDEO_LOG_LEVEL);
 
-#if !DT_HAS_CHOSEN(zephyr_sensor_fw)
-#error "AP1302 driver requires definition of reserved memory for loading firmware"
-#endif
-
-/* Constants derived from device tree */
-#define FW_NODE		DT_CHOSEN(zephyr_sensor_fw)
-#define FW_START_ADDR	DT_REG_ADDR(FW_NODE)
-#define FW_SIZE		DT_REG_SIZE(FW_NODE)
-
 #define AP1302_FW_WINDOW_OFFSET			0x8000
 #define AP1302_FW_WINDOW_SIZE			0x2000
 
@@ -71,6 +62,8 @@ struct ap1302_config {
 	uint32_t regulator_num;
 	const struct gpio_dt_spec isp_en_gpio;
 	const struct gpio_dt_spec reset_gpio;
+	uintptr_t fw_base;
+	uint32_t fw_size;
 };
 
 struct ap1302_mode_config {
@@ -331,13 +324,14 @@ static int ap1302_write_fw_window(const struct device *dev,
 
 static int ap1302_load_firmware(const struct device *dev)
 {
+	const struct ap1302_config *cfg = dev->config;
 	mm_reg_t fw_addr;
 	struct ap1302_firmware *ap1302_fw;
 	const uint8_t *fw_data;
 	uint16_t val, win_pos = 0;
 	int ret;
 
-	device_map(&fw_addr, FW_START_ADDR, FW_SIZE, K_MEM_DIRECT_MAP);
+	device_map(&fw_addr, cfg->fw_base, cfg->fw_size, K_MEM_DIRECT_MAP);
 
 	ap1302_fw = (struct ap1302_firmware *)fw_addr;
 
@@ -674,6 +668,9 @@ static int ap1302_init(const struct device *dev)
 		.regulator_num = DT_INST_PROP_LEN(n, regulators),                                  \
 		.isp_en_gpio = GPIO_DT_SPEC_INST_GET(n, isp_en_gpios),                             \
 		.reset_gpio = GPIO_DT_SPEC_INST_GET(n, reset_gpios),                               \
+		.fw_base = DT_REG_ADDR(DT_INST_PHANDLE(n, firmware)),                              \
+		.fw_size = DT_REG_SIZE(DT_INST_PHANDLE(n, firmware)),                              \
+                                                                                                   \
 	};                                                                                         \
                                                                                                    \
 	DEVICE_DT_INST_DEFINE(n, &ap1302_init, NULL, &ap1302_data_##n, &ap1302_cfg_##n,            \
