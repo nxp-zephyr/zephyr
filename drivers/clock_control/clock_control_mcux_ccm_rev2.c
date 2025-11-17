@@ -9,7 +9,7 @@
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/dt-bindings/clock/imx_ccm_rev2.h>
 #include <fsl_clock.h>
-#if defined(CONFIG_SOC_MIMX9352_A55)
+#if defined(CONFIG_SOC_MIMX9352)
 #include <soc.h>
 #endif
 
@@ -200,7 +200,7 @@ static int mcux_ccm_get_subsys_rate(const struct device *dev,
 		break;
 #endif
 
-#if defined(CONFIG_SOC_MIMX9352_A55)
+#if defined(CONFIG_SOC_MIMX9352)
 	case IMX_CCM_MEDIA_AXI_CLK:
 		clock_root = kCLOCK_Root_MediaAxi;
 		break;
@@ -444,7 +444,7 @@ static int CCM_SET_FUNC_ATTR mcux_ccm_set_subsys_rate(const struct device *dev,
 		return 0;
 #endif
 
-#if defined(CONFIG_SOC_MIMX9352_A55)
+#if defined(CONFIG_SOC_MIMX9352)
 	case IMX_CCM_MEDIA_AXI_CLK:
 	case IMX_CCM_MEDIA_APB_CLK:
 	case IMX_CCM_MEDIA_DISP_PIX_CLK:
